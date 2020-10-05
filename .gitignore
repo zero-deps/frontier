@@ -1,0 +1,6 @@
+.DS_Store
+*.swp
+/.java-version
+/rng_data*/
+/tmp/
+target/
