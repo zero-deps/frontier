@@ -34,23 +34,14 @@ ThisBuild / scalacOptions ++= Seq(
   , "-Wconf:cat=deprecation&msg=Auto-application:silent"
 )
 
+ThisBuild / turbo := true
+ThisBuild / useCoursier := true
 Global / onChangedBuildSource := ReloadOnSourceChanges
-Global / cancelable := true
-Global / fork := true
 
-lazy val saw = project.in(file(".")).settings(
+lazy val frontier = project.in(file(".")).settings(
   libraryDependencies ++= Seq(
     "dev.zio"                                %% "zio-nio"               % "1.0.0-RC6" // "1.0.0-RC9"
   , "dev.zio"                                %% "zio-akka-cluster"      % "0.1.13" /* "0.2.0" */ excludeAll(ExclusionRule(organization = "dev.zio"))
-  // , "com.github.plokhotnyuk.jsoniter-scala"  %% "jsoniter-scala-core"   % "2.6.0"
-  // , "com.github.plokhotnyuk.jsoniter-scala"  %% "jsoniter-scala-macros" % "2.6.0" % "compile-internal"
-  // // , "org.scalacheck"                         %% "scalacheck"            % "1.14.1" % Test
-  // , "org.scalatest"                          %% "scalatest"             % "3.2.2" % Test
-  // , "io.github.zero-deps"                    %% "kvs-core"              % "5.3"
-  // , "org.glassfish" % "jakarta.json" % "2.0.0-RC3"
-  // , "org.rocksdb"                            % "rocksdbjni"            % "6.4.6"
-  // , "ch.ethz.globis.phtree"                  % "phtree"                % "2.5.0"
-  // , "redis.clients"                          % "jedis"                  % "3.3.0"
   )
 )
 
