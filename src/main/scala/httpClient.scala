@@ -1,5 +1,4 @@
-package zd
-package frontier
+package zero.ftier
 
 import zio._, blocking._
 import java.net.http.{HttpClient, HttpRequest}
@@ -41,7 +40,7 @@ object httpClient {
     // } yield v
 
     def send(cp: ConnectionPool, request: Request): ZIO[Blocking, Err, Response] = for {
-        uri  <- IO.effect(new URI(request.url)).mapError(HttpErr.WrongUri)
+        uri  <- IO.effect(new URI(request.url)).mapError(HttpErr.BadUri)
         reqb <- IO.effect(HttpRequest.newBuilder(uri).method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.body.toArray))).mapError(TcpErr)
         _    <- if (request.headers.nonEmpty) IO.effect(reqb.headers(request.headers.toList.flatMap(x => x._1 :: x._2 :: Nil): _*)).mapError(TcpErr) else IO.unit
         req  <- IO.effect(reqb.build()).mapError(TcpErr)

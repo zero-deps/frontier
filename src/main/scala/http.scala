@@ -1,5 +1,4 @@
-package zd
-package frontier
+package zero.ftier
 
 import zio._
 
@@ -62,7 +61,7 @@ object http {
         // _        <- queue.offer(body)
         // stream   <- IO.succeed(Stream.fromQueueWithShutdown(queue))
         msg      <- IO.succeed(HttpMessage(line1, headers, body))
-        len      <- headers.get("Content-Length").map(l => parseInt(l).orElseFail(HttpErr.WrongContentLength)).getOrElse(IO.succeed(0))
+        len      <- headers.get("Content-Length").map(l => parseInt(l).orElseFail(HttpErr.BadContentLength)).getOrElse(IO.succeed(0))
     } yield {
         if (msg.body.length >= len) {
             MsgDone(msg)
@@ -79,14 +78,14 @@ object http {
     def toReq(msg: HttpMessage): IO[HttpErr, Request] = {
         msg.line1.split(' ').toVector match {
             case method +: url +: _ => IO.succeed(Request(method, url, msg.headers, msg.body))
-            case _ => IO.fail(HttpErr.NotValidFirstLine)
+            case _ => IO.fail(HttpErr.BadFirstLine)
         }
     }
     
     def toResp(msg: HttpMessage): IO[HttpErr, Response] = {
         msg.line1.split(' ').toVector match {
-            case _ +: code +: _ => parseInt(code).orElseFail(HttpErr.NotValidFirstLine).map(c => Response(c, msg.headers, msg.body))
-            case _ => IO.fail(HttpErr.NotValidFirstLine)
+            case _ +: code +: _ => parseInt(code).orElseFail(HttpErr.BadFirstLine).map(c => Response(c, msg.headers, msg.body))
+            case _ => IO.fail(HttpErr.BadFirstLine)
         }
     }
 

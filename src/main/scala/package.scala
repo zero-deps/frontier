@@ -1,10 +1,9 @@
-package zd
+package zero
 
 import zio._
 
-package object frontier {
-  def parseDouble(v: String): IO[ParseErr, Double] = IO.fromOption(v.toDoubleOption).orElseFail(ParseErr(v))
-  def parseInt(v: String): IO[ParseErr, Int] = IO.fromOption(v.toIntOption).orElseFail(ParseErr(v))
+package object ftier {
+  def parseInt(v: String): IO[ParseIntErr.type, Int] = IO.fromOption(v.toIntOption).orElseFail(ParseIntErr)
 
   private[this] val hexs = "0123456789abcdef".getBytes("ascii")
   def hex(bytes: Array[Byte]): String = {
