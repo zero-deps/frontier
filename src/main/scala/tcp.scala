@@ -42,7 +42,7 @@ object tcp {
                         _ <- chunks.set(c ++ a)
                     } yield if (c.length > size2mb) -1 else n).catchSome{
                         case err: IOException if err.getMessage.contains("Connection reset") => IO.succeed(-1)
-                    }.doWhile(_ > 0)
+                    }.repeatWhile(_ > 0)
         chunks   <- chunks.get
     } yield (lastN, chunks)
 

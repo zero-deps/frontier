@@ -28,7 +28,7 @@ object ws {
 
     def getNum(from: Int, size: Int, chunk: Chunk[Byte]): Option[Long] = {
         if (chunk.length > from + size) {
-            Some(chunk.drop(from).take(size).fold(0L){ case (acc, v) => (acc << 8) | (v & 0xff) })
+            Some(chunk.drop(from).take(size).foldLeft(0L){ case (acc, v) => (acc << 8) | (v & 0xff) })
         } else {
             None
         }

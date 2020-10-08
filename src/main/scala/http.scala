@@ -28,17 +28,18 @@ object http {
             var prev = state.prev
             var prevrn = state.prevrn
             var found = false
-            chunk.indexWhere{ b =>
-                if (b != 13 && b != 10) prevrn = false
-                if (b == 10 && prev == 13) {
+            chunk.indexWhere( b => {
+                val bInt = b.toInt //fix: comparing Byte with Int
+                if (bInt != 13 && bInt != 10) prevrn = false //fix: comparing Byte with Int
+                if (bInt == 10 && prev.toInt == 13) { //fix: comparing Byte with Int
                     if (prevrn) found = true
                     prevrn = true
                 }
                 prev = b
                 found
-            }.map(_ + state.data.length) match {
-                case Some(pos) => parseHeader(pos, state.data ++ chunk)
-                case None      => ZIO.succeed(AwaitHeader(prev, prevrn, state.data ++ chunk))
+            }, 0) match {
+                case -1  => ZIO.succeed(AwaitHeader(prev, prevrn, state.data ++ chunk))
+                case pos => parseHeader(pos + state.data.length, state.data ++ chunk)
             }
         case state: AwaitBody =>
             val msg = state.msg.copy(body = state.msg.body ++ chunk)
