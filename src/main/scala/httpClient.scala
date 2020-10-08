@@ -33,20 +33,20 @@ object httpClient {
 
     // def send(cp: ConnectionPool, addr: SocketAddress, req: Request): IO[Err, Response] = for {
     //     p <- Promise.make[HttpErr, Response]
-    //     c <- tcp.connect(cp, channel => Ref.make[HttpState](HttpState()).map(state => httpProtocol(channel, state, p)), addr).mapError(TcpErr)
-    //     _ <- tcp.write(c, build(req)).mapError(TcpErr)
+    //     c <- tcp.connect(cp, channel => Ref.make[HttpState](HttpState()).map(state => httpProtocol(channel, state, p)), addr).mapError(Throwed)
+    //     _ <- tcp.write(c, build(req)).mapError(Throwed)
     //     v <- p.await
-    //     _ <- tcp.close(c).mapError(TcpErr)
+    //     _ <- tcp.close(c).mapError(Throwed)
     // } yield v
 
     def send(cp: ConnectionPool, request: Request): ZIO[Blocking, Err, Response] = for {
         uri  <- IO.effect(new URI(request.url)).mapError(HttpErr.BadUri)
-        reqb <- IO.effect(HttpRequest.newBuilder(uri).method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.body.toArray))).mapError(TcpErr)
-        _    <- if (request.headers.nonEmpty) IO.effect(reqb.headers(request.headers.toList.flatMap(x => x._1 :: x._2 :: Nil): _*)).mapError(TcpErr) else IO.unit
-        req  <- IO.effect(reqb.build()).mapError(TcpErr)
+        reqb <- IO.effect(HttpRequest.newBuilder(uri).method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.body.toArray))).mapError(Throwed)
+        _    <- if (request.headers.nonEmpty) IO.effect(reqb.headers(request.headers.toList.flatMap(x => x._1 :: x._2 :: Nil): _*)).mapError(Throwed) else IO.unit
+        req  <- IO.effect(reqb.build()).mapError(Throwed)
         resp <- effectBlocking(cp.client.send(req, BodyHandlers.ofByteArray())).map(resp =>
                     Response(resp.statusCode(), Map.empty, Chunk.fromArray(resp.body()))
-                ).mapError(TcpErr)
+                ).mapError(Throwed)
     } yield resp
 
     case class ConnectionPool(client: HttpClient)

@@ -25,7 +25,7 @@ object httpServer {
                   resp <- resp
               } yield {
                   if (resp.code == 101) {
-                      val writeF: Msg => IO[Err, Unit] = msg => write(msg).mapError(WsErr.WriteMessageErr).flatMap(channel.write(_).unit.mapError(TcpErr))
+                      val writeF: Msg => IO[Err, Unit] = msg => write(msg).mapError(WsErr.WriteMessageErr).flatMap(channel.write(_).unit.mapError(Throwed))
                       val p = Protocol.ws(WsContextData(req, writeF, channel.close))
                       (p, Some(resp))
                   } else {
