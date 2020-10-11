@@ -1,4 +1,4 @@
-package zero.ftier
+package ftier
 
 import java.security.SecureRandom
 import zio._

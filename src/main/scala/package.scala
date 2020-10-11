@@ -1,5 +1,3 @@
-package zero
-
 import zio._
 
 package object ftier {

@@ -1,4 +1,4 @@
-package zero.ftier
+package ftier
 
 import zio._, blocking._
 import java.net.http.{HttpClient, HttpRequest}

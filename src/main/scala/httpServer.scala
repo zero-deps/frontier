@@ -1,4 +1,4 @@
-package zero.ftier
+package ftier
 
 import zio._, nio._, core._, core.channels._
 

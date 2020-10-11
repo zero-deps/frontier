@@ -1,4 +1,4 @@
-package zero.ftier
+package ftier
 
 import zio._
 import zio.clock.Clock

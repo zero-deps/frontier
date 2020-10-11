@@ -1,4 +1,4 @@
-package zero.ftier
+package ftier
 
 sealed trait Err
 
