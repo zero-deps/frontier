@@ -48,7 +48,7 @@ object telegram {
       val message = obj.get("message")
       val x =
         if (message != null) {
-          if (message.get("connected_website").asText != null) {
+          if (message.get("connected_website") != null) {
             ConnectedWebsite(new ChatId(message.get("chat").get("id").asInt))
           } else {
             PrivateQuery(new ChatId(message.get("chat").get("id").asInt), new Query(message.get("text").asText))
