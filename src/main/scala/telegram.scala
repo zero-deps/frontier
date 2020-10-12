@@ -111,10 +111,10 @@ object telegram {
     , disable_notification: Boolean
     )
 
-    def answerConnectedWebsite(chatId: ChatId): Array[Byte] = {
+    def answerConnectedWebsite(text: String, chatId: ChatId): Array[Byte] = {
       json.writeValueAsBytes(AnswerConnectedWebsite(
         chat_id=chatId.chatId
-      , text="Welcome!"
+      , text=text
       , disable_notification=true
       ))
     }
