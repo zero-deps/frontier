@@ -25,21 +25,14 @@ object telegram {
     import httpClient._
     import java.net.URLEncoder
     import zio.blocking._
-    def sendMessage(text: String, telegramId: Option[Int], muted: Boolean): ZIO[Blocking, Err, Unit] = for {
-      token1 <- IO.effect(sys.env("calc_token")).map(Some(_)).catchSome{
-        case _: java.util.NoSuchElementException => IO.succeed(None)
-      }.mapError(Throwed)
-      _ <- (token1, telegramId) match {
-        case (Some(token), Some(chatId)) =>
-          for {
-            url <- IO.succeed(s"https://api.telegram.org/bot$token/sendMessage")
-            payload <- IO.effect(s"chat_id=$chatId&disable_notification=$muted&text="+URLEncoder.encode(text, "utf8")).mapError(Throwed)
-            cp   <- connectionPool
-            _ <- send(cp, http.Request("POST", url, Map("Content-Type" -> "application/x-www-form-urlencoded"), Chunk.fromArray(payload.getBytes("utf8"))))
-          } yield ()
-        case _ => IO.unit
-      }
-    } yield ()
+    def sendMessage(token: String, text: String, telegramId: Int, muted: Boolean): ZIO[Blocking, Err, Unit] = {
+      for {
+        url     <- IO.succeed(s"https://api.telegram.org/bot$token/sendMessage")
+        payload <- IO.effect(s"chat_id=$telegramId&disable_notification=$muted&text="+URLEncoder.encode(text, "utf8")).mapError(Throwed)
+        cp      <- connectionPool
+        _       <- send(cp, http.Request("POST", url, Map("Content-Type" -> "application/x-www-form-urlencoded"), Chunk.fromArray(payload.getBytes("utf8"))))
+      } yield ()
+    }
   }
 
   object reader {
