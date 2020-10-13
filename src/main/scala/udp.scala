@@ -1,50 +1,28 @@
 package ftier
 
 import zio._
-import zio.clock.Clock
 import zio.nio.channels.{ Channel => _, _ }
 import zio.nio.core.{ Buffer, SocketAddress }
 
-object Udp {
-  trait Service {
-    def bind(localAddr: SocketAddress)(connectionHandler: Channel => UIO[Unit]): Managed[Err, Bind]
-  }
-}
-
-final class Channel(
-  val read0: Unit => IO[Err, Chunk[Byte]]
-) {
+final class Channel(val read0: Unit => IO[Err, Chunk[Byte]]) {
   val read: IO[Err, Chunk[Byte]] = read0(())
 }
 
-final class Bind(
-  val isOpen: IO[Err, Boolean],
-  val close: IO[Err, Unit],
-  val localAddress: IO[Err, SocketAddress]
-)
+final class Bind
+  ( val isOpen: IO[Err, Boolean]
+  , val close: IO[Err, Unit]
+  , val localAddress: IO[Err, SocketAddress]
+  )
 
 package object udp {
   type Udp = Has[Udp.Service]
 
-  def bind[R <: Udp](
-    localAddr: SocketAddress
-  )(
-    connectionHandler: Channel => ZIO[R, Nothing, Unit]
-  ): ZManaged[R, Err, Bind] = {
-    ZManaged
-      .environment[R]
-      .flatMap(
-        env =>
-          env
-            .get[Udp.Service]
-            .bind(localAddr)(
-              conn => connectionHandler(conn).provide(env)
-            )
-      )
-  }
+  object Udp {
+    trait Service {
+      def bind(localAddr: SocketAddress)(connectionHandler: Channel => UIO[Unit]): Managed[Err, Bind]
+    }
 
-  def live(mtu: Int): ZLayer[Clock, Nothing, Udp] =
-    ZLayer.fromFunction { _ => // env =>
+    def live(mtu: Int): ZLayer[Any, Nothing, Udp] = ZLayer.succeed{
       new Udp.Service {
         def bind(addr: SocketAddress)(connectionHandler: Channel => UIO[Unit]): Managed[Err, Bind] = {
           DatagramChannel
@@ -94,8 +72,12 @@ package object udp {
                     new Bind(server.isOpen, close.unit, local)
                   }
             }
-            // .provide(env)
         }
       }
     }
+  }
+
+  def bind[R <: Udp](localAddr: SocketAddress)(connectionHandler: Channel => ZIO[R, Nothing, Unit]): ZManaged[R, Err, Bind] = {
+    ZManaged.environment[R].flatMap(env => env.get[Udp.Service].bind(localAddr)(conn => connectionHandler(conn).provide(env)))
+  }
 }
