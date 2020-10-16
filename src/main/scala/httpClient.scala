@@ -49,6 +49,20 @@ object httpClient {
                 ).mapError(Throwed)
     } yield resp
 
+    def sendAsync(cp: ConnectionPool, request: Request): IO[Err, Response] = {
+      import scala.jdk.FutureConverters._
+
+      for {
+        uri  <- IO.effect(new URI(request.url)).mapError(HttpErr.BadUri)
+        reqb <- IO.effect(HttpRequest.newBuilder(uri).method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.body.toArray))).mapError(Throwed)
+        _    <- if (request.headers.nonEmpty) IO.effect(reqb.headers(request.headers.toList.flatMap(x => x._1 :: x._2 :: Nil): _*)).mapError(Throwed) else IO.unit
+        req  <- IO.effect(reqb.build()).mapError(Throwed)
+        resp <- ZIO.fromFuture(_ => cp.client.sendAsync(req, BodyHandlers.ofByteArray()).asScala).map(resp =>
+                    Response(resp.statusCode(), Map.empty, Chunk.fromArray(resp.body()))
+                ).mapError(Throwed)
+      } yield resp
+    }
+
     case class ConnectionPool(client: HttpClient)
     
     val connectionPool: UIO[ConnectionPool] = 
