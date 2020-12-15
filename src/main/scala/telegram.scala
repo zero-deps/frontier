@@ -1,6 +1,10 @@
 package ftier
 
-import zio._
+import java.util.concurrent.TimeUnit
+import java.security.MessageDigest
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
+import zio._, clock._
 
 object telegram {
   sealed trait Update
@@ -20,6 +24,20 @@ object telegram {
 
   object Hash { def apply(h: String): Hash = new Hash(h) }
   final class Hash(val hash: String) extends AnyVal
+
+  def validate(hash: String, date: Long, data: String, token: String): ZIO[Clock, Err, Unit] = {
+    for {
+      sha256      <- IO.effectTotal(MessageDigest.getInstance("SHA-256"))
+      hmac_sha256 <- IO.effectTotal(Mac.getInstance("HmacSHA256"))
+      secret_key  <- IO.effectTotal(sha256.digest(token.getBytes("ascii")))
+      skey        <- IO.effectTotal(new SecretKeySpec(secret_key, "HmacSHA256"))
+      _           <- IO.effect(hmac_sha256.init(skey)).mapError(Throwed)
+      mac_res     <- IO.effect(hmac_sha256.doFinal(data.getBytes("utf8"))).mapError(Throwed)
+      _           <- IO.when(hex(mac_res) != hash)(IO.fail(TgErr.BadHash))
+      now_sec     <- currentTime(TimeUnit.SECONDS)
+      _           <- IO.when(now_sec - date > 86400)(IO.fail(TgErr.Outdated))
+    } yield ()
+  }
 
   object push {
     import httpClient._
