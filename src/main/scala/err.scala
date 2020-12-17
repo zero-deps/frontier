@@ -22,6 +22,10 @@ object TgErr {
   case object Outdated extends Err
 }
 
+object UdpErr {
+  case object NoAddr extends Err
+}
+
 case object ParseIntErr extends Err
 
 trait ForeignErr extends Err

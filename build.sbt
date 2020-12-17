@@ -5,8 +5,11 @@ Global / onChangedBuildSource := ReloadOnSourceChanges
 lazy val frontier = project.in(file(".")).settings(
     libraryDependencies ++= Seq(
       "dev.zio" %% "zio-nio" % "1.0.0-RC9"
+    , "io.github.zero-deps" %% "ext" % "2.4.1.g7c28a4a"
     , "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.11.3"
     )
+  , githubOwner := "zero-deps"
+  , githubRepository := "ext"
   , scalaVersion := "2.13.3"
   , scalacOptions ++= Seq(
       "-deprecation"

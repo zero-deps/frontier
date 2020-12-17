@@ -1,5 +1,6 @@
-.DS_Store
 *.swp
+.ds_store
+/.bsp/
 /.java-version
 /rng_data*/
 /tmp/
