@@ -6,12 +6,12 @@ import http._, ws._
 
 object httpServer {
   sealed trait Protocol
-  private object Protocol {
+  object Protocol {
     def http: Http = Http(HttpState())
     def ws(ctx: WsContextData): Ws = Ws(new WsState(None, Chunk.empty), ctx)
   }
-  private case class Http(state: HttpState) extends Protocol
-  private case class Ws(state: WsState, ctx: WsContextData) extends Protocol
+  case class Http(state: HttpState) extends Protocol
+  case class Ws(state: WsState, ctx: WsContextData) extends Protocol
 
   type HttpHandler = PartialFunction[Request, IO[Err, Response]]
   type WsHandler = PartialFunction[Msg, ZIO[WsContext, Err, Unit]]
