@@ -1,5 +1,5 @@
 version := zero.git.version()
-scalaVersion := "3.0.0-M3"
+scalaVersion := "3.0.0-RC1"
 
 libraryDependencies ++= Seq(
   "com.fasterxml.jackson.module" % "jackson-module-scala_2.13" % "2.12.1"
