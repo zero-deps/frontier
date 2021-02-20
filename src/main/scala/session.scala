@@ -1,6 +1,7 @@
 package ftier
 
 import java.security.SecureRandom
+import zero.ext._
 import zio._
 
 object session {
@@ -10,6 +11,7 @@ object session {
     for {
       bytes <- UIO.succeed(new Array[Byte](16))
       _     <- UIO.succeed(random.nextBytes(bytes))
-    } yield hex(bytes)
+      str <- IO.effectTotal(bytes.hex.utf8)
+    } yield str
   }
 }

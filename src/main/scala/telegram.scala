@@ -4,36 +4,36 @@ import java.util.concurrent.TimeUnit
 import java.security.MessageDigest
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
+import zero.ext._
 import zio._, clock._
 
 object telegram {
-  sealed trait Update
-  final case class InlineQuery(id: Id, query: Query) extends Update
-  final case class PrivateQuery(chatId: ChatId, query: Query) extends Update
-  final case class ConnectedWebsite(chatId: ChatId) extends Update
-  final case object OtherUpdate extends Update
+  enum Update:
+    case InlineQuery(id: Id, query: Query)
+    case PrivateQuery(chatId: ChatId, query: Query)
+    case ConnectedWebsite(chatId: ChatId)
+    case OtherUpdate
 
-  final class Id(val id: String) extends AnyVal
-  final class ChatId(val chatId: Int) extends AnyVal
-  final class Query(val query: String) extends AnyVal {
-    def isEmpty: Boolean = query.isEmpty
-  }
+  opaque type Id = String
+  opaque type ChatId = Int
+  opaque type Query = String
+  opaque type QueryRes = String
+  opaque type Hash = String
 
-  object QueryRes { def apply(q: String): QueryRes = new QueryRes(q) }
-  final class QueryRes(val queryRes: String) extends AnyVal
-
-  object Hash { def apply(h: String): Hash = new Hash(h) }
-  final class Hash(val hash: String) extends AnyVal
+  extension (x: Query)
+    def isStart: Boolean = x == "/start"
+  object QueryRes:
+    def apply(x: String): QueryRes = x
 
   def validate(hash: String, date: Long, data: String, token: String): ZIO[Clock, Err, Unit] = {
     for {
       sha256      <- IO.effectTotal(MessageDigest.getInstance("SHA-256"))
       hmac_sha256 <- IO.effectTotal(Mac.getInstance("HmacSHA256"))
       secret_key  <- IO.effectTotal(sha256.digest(token.getBytes("ascii")))
-      skey        <- IO.effectTotal(new SecretKeySpec(secret_key, "HmacSHA256"))
+      skey        <- IO.effectTotal(SecretKeySpec(secret_key, "HmacSHA256"))
       _           <- IO.effect(hmac_sha256.init(skey)).mapError(Throwed)
       mac_res     <- IO.effect(hmac_sha256.doFinal(data.getBytes("utf8"))).mapError(Throwed)
-      _           <- IO.when(hex(mac_res) != hash)(IO.fail(TgErr.BadHash))
+      _           <- IO.when(mac_res.hex.utf8 != hash)(IO.fail(TgErr.BadHash))
       now_sec     <- currentTime(TimeUnit.SECONDS)
       _           <- IO.when(now_sec - date > 86400)(IO.fail(TgErr.Outdated))
     } yield ()
@@ -54,31 +54,28 @@ object telegram {
   }
 
   object reader {
-    def find(xs: Array[Byte])(f: Update => ZIO[Any, Err, Array[Byte]]): ZIO[Any, Err, Array[Byte]] = {
-      val obj = json.readTree(xs)
+    def find[E](xs: Chunk[Byte])(f: Update => ZIO[Any, E, Chunk[Byte]]): ZIO[Any, E, Chunk[Byte]] = {
+      val obj = json.readTree(xs.toArray)
       val message = obj.get("message")
-      val x =
-        if (message != null) {
-          if (message.get("connected_website") != null) {
-            ConnectedWebsite(new ChatId(message.get("chat").get("id").asInt))
-          } else {
-            PrivateQuery(new ChatId(message.get("chat").get("id").asInt), new Query(message.get("text").asText))
-          }
-        } else {
+      f {
+        if message != null then
+          if message.get("connected_website") != null then
+            Update.ConnectedWebsite(message.get("chat").get("id").asInt)
+          else
+            Update.PrivateQuery(message.get("chat").get("id").asInt, message.get("text").asText)
+        else
           val iq = obj.get("inline_query")
-          if (iq != null) {
-            InlineQuery(new Id(iq.get("id").asText), new Query(iq.get("query").asText))
-          } else {
-            OtherUpdate
-          }
-        }
-      f(x)
+          if iq != null then
+            Update.InlineQuery(iq.get("id").asText, iq.get("query").asText)
+          else
+            Update.OtherUpdate
+      }
     }
   }
 
   object writer {
     def hash(q: Query): UIO[Hash] = {
-      md5(q.query.getBytes("utf8")).map(Hash(_)).orDie
+      md5(q.getBytes("utf8")).orDie
     }
 
     case class AnswerInlineQuery(
@@ -98,11 +95,11 @@ object telegram {
 
     def answerInlineQuery(id: Id, queryRes: QueryRes, hash: Hash, query: Query): Array[Byte] = {
       json.writeValueAsBytes(AnswerInlineQuery(
-        inline_query_id=id.id
+        inline_query_id=id
       , results=Result(
-          id=hash.hash
-        , input_message_content=InputMessageContent(s"${query.query} = ${queryRes.queryRes}")
-        , title=queryRes.queryRes
+          id=hash
+        , input_message_content=InputMessageContent(s"$query = $queryRes")
+        , title=queryRes
         ) :: Nil
       ))
     }
@@ -114,12 +111,12 @@ object telegram {
     , disable_notification: Boolean
     )
 
-    def answerPrivateQuery(chatId: ChatId, queryRes: Seq[QueryRes], query: Query): Array[Byte] = {
-      json.writeValueAsBytes(AnswerPrivateQuery(
-        chat_id=chatId.chatId
-      , text=s"${query.query} = ${queryRes.map(_.queryRes).mkString}"
+    def answerPrivateQuery(chatId: ChatId, queryRes: QueryRes): UIO[Chunk[Byte]] = {
+      IO.effectTotal(json.writeValueAsBytes(AnswerPrivateQuery(
+        chat_id=chatId
+      , text=queryRes
       , disable_notification=true
-      ))
+      ))).map(Chunk.fromArray)
     }
 
     case class AnswerConnectedWebsite(
@@ -131,7 +128,7 @@ object telegram {
 
     def answerConnectedWebsite(text: String, chatId: ChatId): Array[Byte] = {
       json.writeValueAsBytes(AnswerConnectedWebsite(
-        chat_id=chatId.chatId
+        chat_id=chatId
       , text=text
       , disable_notification=true
       ))
