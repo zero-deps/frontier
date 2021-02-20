@@ -13,7 +13,7 @@ object httpServer {
   case class Http(state: HttpState) extends Protocol
   case class Ws(state: WsState, ctx: WsContextData) extends Protocol
 
-  type HttpHandler = PartialFunction[Request, IO[Err, Response]]
+  type HttpHandler = PartialFunction[Request, IO[Nothing, Response]]
   type WsHandler = PartialFunction[Msg, ZIO[WsContext, Err, Unit]]
 
   def processHttp(channel: SocketChannel, handler: HttpHandler, handler2: WsHandler)(protocol: Http, chunk: Chunk[Byte]): Task[Protocol] = {

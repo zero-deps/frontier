@@ -27,5 +27,3 @@ object UdpErr {
 }
 
 case object ParseIntErr extends Err
-
-trait ForeignErr extends Err
