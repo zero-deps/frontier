@@ -11,3 +11,5 @@ lazy val zio_nio = project
   )
 
 lazy val zio_nio_core = project.in(file("../nio-core"))
+
+resolvers += Resolver.JCenterRepository

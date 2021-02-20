@@ -18,3 +18,5 @@ lazy val ext = project.in(file("deps/ext"))
 turbo := true
 useCoursier := true
 Global / onChangedBuildSource := ReloadOnSourceChanges
+
+resolvers += Resolver.JCenterRepository

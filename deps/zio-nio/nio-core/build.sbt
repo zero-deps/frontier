@@ -8,3 +8,5 @@ lazy val zio_nio_core = project
   , testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
   , scalaVersion := "3.0.0-M3"
   )
+
+resolvers += Resolver.JCenterRepository
