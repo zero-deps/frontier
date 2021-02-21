@@ -97,3 +97,5 @@ package object udp {
   def connect(to: SocketAddress): ZManaged[Udp, Err, ChannelWrite] =
     ZManaged.environment[Udp].flatMap(_.get.connect(to))
 }
+
+given CanEqual[None.type, Option[SocketAddress]] = CanEqual.derived

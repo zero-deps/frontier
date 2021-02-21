@@ -27,3 +27,5 @@ object UdpErr {
 }
 
 case object ParseIntErr extends Err
+
+given CanEqual[Err, Err] = CanEqual.derived

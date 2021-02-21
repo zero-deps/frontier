@@ -10,7 +10,7 @@ testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 scalacOptions ++= Seq(
   "-language:postfixOps"
 // , "-Yexplicit-nulls"
-// , "-language:strictEquality"
+, "-language:strictEquality"
 )
 
 dependsOn(zio_nio, ext)

@@ -90,4 +90,6 @@ object httpServer {
       }
     )
   }
+
+  given CanEqual[None.type, Option[Response]] = CanEqual.derived
 }

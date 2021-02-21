@@ -13,6 +13,8 @@ object ws {
   case object Pong extends Msg
   case class Unknown(opcode: Int, v: Chunk[Byte]) extends Msg
 
+  given CanEqual[Msg, Msg] = CanEqual.derived
+
   case class WsHeader(fin: Boolean, opcode: Int, mask: Boolean, maskN: Int, size: Int)
   case class WsState(h: Option[WsHeader], data: Chunk[Byte])
 
