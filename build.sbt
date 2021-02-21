@@ -3,7 +3,9 @@ scalaVersion := "3.0.0-M3"
 
 libraryDependencies ++= Seq(
   "com.fasterxml.jackson.module" % "jackson-module-scala_2.13" % "2.12.1"
+, "dev.zio" %% "zio-test-sbt" % "1.0.4-2" % Test
 )
+testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 
 scalacOptions ++= Seq(
   "-language:postfixOps"
