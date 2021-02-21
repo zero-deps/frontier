@@ -15,6 +15,12 @@ class SocketAddress private[nio] (private[nio] val jSocketAddress: JSocketAddres
   override def hashCode(): Int = jSocketAddress.hashCode()
 
   override def toString: String = jSocketAddress.toString
+
+  def inetSocketAddress: Option[InetSocketAddress] =
+    jSocketAddress match {
+      case x: JInetSocketAddress => Some(InetSocketAddress(x))
+      case _ => None
+    }
 }
 
 class InetSocketAddress private[nio] (private val jInetSocketAddress: JInetSocketAddress)
