@@ -20,8 +20,12 @@ object telegram {
   opaque type QueryRes = String
   opaque type Hash = String
 
+  extension (x: ChatId)
+    def toBytes: Array[Byte] = math.BigInt(x).toByteArray
+
   extension (x: Query)
     def isStart: Boolean = x == "/start"
+
   object QueryRes:
     def apply(x: String): QueryRes = x
 
@@ -54,7 +58,7 @@ object telegram {
   }
 
   object reader {
-    def find[E](xs: Chunk[Byte])(f: Update => ZIO[Any, E, Chunk[Byte]]): ZIO[Any, E, Chunk[Byte]] = {
+    def find[R, E](xs: Chunk[Byte])(f: Update => ZIO[R, E, Chunk[Byte]]): ZIO[R, E, Chunk[Byte]] = {
       val obj = json.readTree(xs.toArray)
       val message = obj.get("message")
       f {
