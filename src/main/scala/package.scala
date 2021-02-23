@@ -10,12 +10,4 @@ package object ftier {
   }
 
   def uuid(): String = java.util.UUID.randomUUID().toString
-
-  val json = {
-    import com.fasterxml.jackson.databind.ObjectMapper
-    import com.fasterxml.jackson.module.scala.DefaultScalaModule
-    val om = new ObjectMapper
-    om.registerModule(DefaultScalaModule)
-    om
-  }
 }
