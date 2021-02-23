@@ -4,7 +4,7 @@ import java.util.concurrent.TimeUnit
 import java.security.MessageDigest
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
-import zero.ext._
+import zero.ext._, option._
 import zio._, clock._
 
 object telegram {
@@ -23,8 +23,9 @@ object telegram {
   extension (x: ChatId)
     def toBytes: Array[Byte] = math.BigInt(x).toByteArray
 
-  extension (x: Query)
-    def isStart: Boolean = x == "/start"
+  object Query:
+    def unapply(x: Query): Option[String] =
+      x.some
 
   object QueryRes:
     def apply(x: String): QueryRes = x
