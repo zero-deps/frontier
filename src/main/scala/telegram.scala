@@ -7,7 +7,7 @@ import javax.crypto.spec.SecretKeySpec
 import zero.ext._, option._
 import zio._, clock._
 
-object telegram {
+object tg {
   enum Update:
     case InlineQuery(id: Id, query: Query)
     case PrivateQuery(chatId: ChatId, query: Query)
@@ -78,6 +78,9 @@ object telegram {
     }
   }
 
+  sealed trait ReplyMarkup
+  case class ReplyKeyboardMarkup(keyboard: Seq[Seq[String]]) extends ReplyMarkup
+
   object writer {
     def hash(q: Query): UIO[Hash] = {
       md5(q.getBytes("utf8")).orDie
@@ -114,13 +117,15 @@ object telegram {
     , chat_id: Int
     , text: String
     , disable_notification: Boolean
+    , reply_markup: Option[ReplyMarkup]
     )
 
-    def answerPrivateQuery(chatId: ChatId, queryRes: QueryRes): UIO[Chunk[Byte]] = {
+    def answerPrivateQuery(chatId: ChatId, queryRes: QueryRes, rm: Option[ReplyMarkup]=none): UIO[Chunk[Byte]] = {
       IO.effectTotal(json.writeValueAsBytes(AnswerPrivateQuery(
         chat_id=chatId
       , text=queryRes
       , disable_notification=true
+      , reply_markup=rm
       ))).map(Chunk.fromArray)
     }
 
