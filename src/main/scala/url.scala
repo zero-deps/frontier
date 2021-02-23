@@ -31,8 +31,12 @@ object `?`:
     Url.unapply(x).map(url => url.p -> url.q)
 
 object `&`:
-  def unapplySeq(q: String): Option[List[String]] =
-    q.split('&').toList.some
+  def unapply(q: String): Option[(String,String)] =
+    val xs = q.split('&')
+    if xs.isEmpty then
+      none
+    else
+      (xs.init.mkString("&"), xs.last).some
 
 object `*`:
   def unapply(x: String): Option[(String, String)] =
