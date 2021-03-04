@@ -79,7 +79,7 @@ object tg {
   }
 
   sealed trait ReplyMarkup
-  case class ReplyKeyboardMarkup(keyboard: Seq[Seq[String]]) extends ReplyMarkup
+  case class ReplyKeyboardMarkup(keyboard: Seq[Seq[String]], resize_keyboard: Boolean=true) extends ReplyMarkup
 
   object writer {
     def hash(q: Query): UIO[Hash] = {
