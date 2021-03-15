@@ -118,6 +118,7 @@ object tg {
     , text: String
     , disable_notification: Boolean
     , reply_markup: Option[ReplyMarkup]
+    , parse_mode: String = "HTML"
     )
 
     def answerPrivateQuery(chatId: ChatId, queryRes: QueryRes, rm: Option[ReplyMarkup]=none): UIO[Chunk[Byte]] = {
