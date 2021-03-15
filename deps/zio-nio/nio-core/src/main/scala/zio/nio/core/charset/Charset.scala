@@ -83,7 +83,7 @@ object Charset {
   def fromJava(javaCharset: j.Charset): Charset = new Charset(javaCharset)
 
   val availableCharsets: Map[String, Charset] =
-    j.Charset.availableCharsets().asScala.mapValues(new Charset(_)).toMap
+    j.Charset.availableCharsets().asScala.view.mapValues(new Charset(_)).toMap
 
   val defaultCharset: Charset = fromJava(j.Charset.defaultCharset())
 

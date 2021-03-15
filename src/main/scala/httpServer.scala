@@ -25,7 +25,7 @@ object httpServer {
           resp <- resp
         } yield {
           if (resp.code == 101) {
-            val writeF: Msg => IO[Err, Unit] = msg => write(msg).mapError(WsErr.WriteMessageErr).flatMap(channel.write(_).unit.mapError(Throwed))
+            val writeF: Msg => IO[Err, Unit] = msg => write(msg).mapError(WsErr.WriteMessageErr.apply).flatMap(channel.write(_).unit.mapError(Throwed.apply))
             val p = Protocol.ws(WsContextData(req, writeF, channel.close))
             (p, Some(resp))
           } else {
@@ -38,7 +38,7 @@ object httpServer {
     }.catchAll{
       case HttpErr.NotHandled => IO.succeed((Protocol.http, Some(Response(501))))
       case e: HttpErr         => IO.succeed((Protocol.http, Some(Response(400))))
-      case e                  => IO.succeed((Protocol.http, Some(Response(500))))
+      // case e                  => IO.succeed((Protocol.http, Some(Response(500))))
     }.flatMap{ 
       case (p, Some(resp)) if resp.code == 101 => channel.write(build(resp)) *> IO.succeed(p)
       case (p, Some(resp)) => channel.write(build(resp)) *> channel.close *> IO.succeed(p)

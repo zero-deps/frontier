@@ -36,7 +36,7 @@ package object udp {
         def bind(addr: SocketAddress)(connectionHandler: ChannelRead => IO[Err, Unit]): Managed[Err, Bind] =
           DatagramChannel
             .bind(Some(addr))
-            .mapError(Throwed)
+            .mapError(Throwed.apply)
             .withEarlyRelease
             .onExit(x => putStrLn(s"shutting down server=$x"))
             .mapM {
@@ -47,7 +47,7 @@ package object udp {
                     buffer =>
                       server
                         .receive(buffer)
-                        .mapError(Throwed)
+                        .mapError(Throwed.apply)
                         .tap(_ => buffer.flip)
                         .map {
                           case Some(addr) =>
@@ -55,7 +55,7 @@ package object udp {
                               for {
                                 rem <- buffer.remaining
                                 h   <- IO.require(UdpErr.NoAddr)(IO.succeed(addr.inetSocketAddress.map(_.hostString)))
-                                x   <- buffer.getChunk(rem).mapError(Throwed)
+                                x   <- buffer.getChunk(rem).mapError(Throwed.apply)
                               } yield h -> x
                             )
                           case None =>
@@ -82,10 +82,10 @@ package object udp {
             .mapM(
               channel =>
                 ChannelWrite.withLock(
-                  channel.write(_).mapError(Throwed).unit
+                  channel.write(_).mapError(Throwed.apply).unit
                 )
             )
-            .mapError(Throwed)
+            .mapError(Throwed.apply)
       }
     }
   }

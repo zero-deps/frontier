@@ -24,7 +24,7 @@ object ws {
   object Ws {
     def initReq: ZIO[WsContext, Nothing, Request] = ZIO.access(_.get.req)
     def send(msg: Msg): ZIO[WsContext, Err, Unit] = ZIO.accessM(_.get.send(msg))
-    def close: ZIO[WsContext, Err, Unit] = ZIO.accessM(_.get.close.mapError(WsErr.CloseErr))
+    def close: ZIO[WsContext, Err, Unit] = ZIO.accessM(_.get.close.mapError(WsErr.CloseErr.apply))
   }
 
 

@@ -36,8 +36,8 @@ object tg {
       hmac_sha256 <- IO.effectTotal(Mac.getInstance("HmacSHA256"))
       secret_key  <- IO.effectTotal(sha256.digest(token.getBytes("ascii")))
       skey        <- IO.effectTotal(SecretKeySpec(secret_key, "HmacSHA256"))
-      _           <- IO.effect(hmac_sha256.init(skey)).mapError(Throwed)
-      mac_res     <- IO.effect(hmac_sha256.doFinal(data.getBytes("utf8"))).mapError(Throwed)
+      _           <- IO.effect(hmac_sha256.init(skey)).mapError(Throwed.apply)
+      mac_res     <- IO.effect(hmac_sha256.doFinal(data.getBytes("utf8"))).mapError(Throwed.apply)
       _           <- IO.when(mac_res.hex.utf8 != hash)(IO.fail(TgErr.BadHash))
       now_sec     <- currentTime(TimeUnit.SECONDS)
       _           <- IO.when(now_sec - date > 86400)(IO.fail(TgErr.Outdated))
@@ -51,7 +51,7 @@ object tg {
     def sendMessage(token: String, text: String, telegramId: Int, muted: Boolean): ZIO[Blocking, Err, Unit] = {
       for {
         url     <- IO.succeed(s"https://api.telegram.org/bot$token/sendMessage")
-        payload <- IO.effect(s"chat_id=$telegramId&disable_notification=$muted&text="+URLEncoder.encode(text, "utf8")).mapError(Throwed)
+        payload <- IO.effect(s"chat_id=$telegramId&disable_notification=$muted&text="+URLEncoder.encode(text, "utf8")).mapError(Throwed.apply)
         cp      <- connectionPool
         _       <- send(cp, http.Request("POST", url, Map("Content-Type" -> "application/x-www-form-urlencoded"), Chunk.fromArray(payload.getBytes("utf8"))))
       } yield ()
