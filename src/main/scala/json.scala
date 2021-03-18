@@ -1,6 +1,6 @@
 package ftier
 
-import com.fasterxml.jackson._, annotation._, databind.ObjectMapper, module.scala._
+import com.fasterxml.jackson.*, annotation.*, databind.ObjectMapper, module.scala.*
 
 val json = {
   val mapper = ObjectMapper()

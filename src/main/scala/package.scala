@@ -1,5 +1,5 @@
-import zero.ext._
-import zio._
+import zero.ext.*
+import zio.*
 
 package object ftier {
   def parseInt(v: String): IO[ParseIntErr.type, Int] = IO.fromOption(v.toIntOption).orElseFail(ParseIntErr)

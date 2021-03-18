@@ -1,7 +1,7 @@
 package ftier
 
-import zio._, nio._, core._
-import http._
+import zio.*, nio.*, core.*
+import http.*
 
 object ws {
   sealed trait Msg
@@ -22,7 +22,7 @@ object ws {
   type WsContext = Has[WsContextData]
   
   object Ws {
-    def initReq: ZIO[WsContext, Nothing, Request] = ZIO.access(_.get.req)
+    def req: ZIO[WsContext, Nothing, Request] = ZIO.access(_.get.req)
     def send(msg: Msg): ZIO[WsContext, Err, Unit] = ZIO.accessM(_.get.send(msg))
     def close: ZIO[WsContext, Err, Unit] = ZIO.accessM(_.get.close.mapError(WsErr.CloseErr.apply))
   }

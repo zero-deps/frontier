@@ -1,8 +1,8 @@
 package ftier
 
-import zio._, nio._, core._, core.channels._
+import zio.*, nio.*, core.*, core.channels.*
 
-import http._, ws._
+import http.*, ws.*
 
 object httpServer {
   sealed trait Protocol

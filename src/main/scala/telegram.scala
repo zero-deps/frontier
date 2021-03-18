@@ -4,8 +4,8 @@ import java.util.concurrent.TimeUnit
 import java.security.MessageDigest
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
-import zero.ext._, option._
-import zio._, clock._
+import zero.ext.*, option.*
+import zio.*, clock.*
 
 object tg {
   enum Update:
@@ -45,9 +45,9 @@ object tg {
   }
 
   object push {
-    import httpClient._
+    import httpClient.*
     import java.net.URLEncoder
-    import zio.blocking._
+    import zio.blocking.*
     def sendMessage(token: String, text: String, telegramId: Int, muted: Boolean): ZIO[Blocking, Err, Unit] = {
       for {
         url     <- IO.succeed(s"https://api.telegram.org/bot$token/sendMessage")

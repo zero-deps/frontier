@@ -1,8 +1,8 @@
 package ftier
 
 import java.security.SecureRandom
-import zero.ext._
-import zio._
+import zero.ext.*
+import zio.*
 
 object session {
   val random = new SecureRandom

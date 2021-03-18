@@ -1,7 +1,7 @@
 package ftier
 
-import zio._, console._
-import zio.nio._, channels.{Channel=>_, _}, core._
+import zio.*, console.*
+import zio.nio.*, channels.{Channel as _, *}, core.*
 
 final case class ChannelRead(read: IO[Err, Tuple2[/*host:*/String,Chunk[Byte]]])
 final case class ChannelWrite(send: Chunk[Byte] => IO[Err, Unit])

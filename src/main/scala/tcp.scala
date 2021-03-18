@@ -1,7 +1,7 @@
 package ftier
 
-import zio._, duration._, nio._, core._, core.channels._
-import java.nio.channels.{ServerSocketChannel => JServerSocketChannel, SocketChannel => JSocketChannel, CancelledKeyException}
+import zio.*, duration.*, nio.*, core.*, core.channels.*
+import java.nio.channels.{ServerSocketChannel as JServerSocketChannel, SocketChannel as JSocketChannel, CancelledKeyException}
 import java.io.IOException
 
 object tcp {

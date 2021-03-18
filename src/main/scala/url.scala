@@ -1,7 +1,7 @@
 package ftier
 
-import annotation._
-import zero.ext._, option._
+import annotation.*
+import zero.ext.*, option.*
 
 case class Url(p: P, q: String)
 

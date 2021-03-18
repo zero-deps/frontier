@@ -9,8 +9,12 @@ testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 
 scalacOptions ++= Seq(
   "-language:postfixOps"
-// , "-Yexplicit-nulls"
 , "-language:strictEquality"
+// , "-Yexplicit-nulls"
+, "-source", "future-migration"
+, "-deprecation"
+, "-rewrite"
+, "release", "15"
 )
 
 dependsOn(zio_nio, ext)

@@ -1,12 +1,12 @@
 package ftier
 
-import zio._, blocking._
+import zio.*, blocking.*
 import java.net.http.{HttpClient, HttpRequest}
 import java.net.http.HttpResponse.BodyHandlers
 import java.net.URI
 import java.time.Duration
 
-import http._
+import http.*
 
 object httpClient {
     
@@ -42,7 +42,7 @@ object httpClient {
     def send(cp: ConnectionPool, request: Request): ZIO[Blocking, Err, Response] = for {
         uri  <- IO.effect(URI(request.url)).mapError(HttpErr.BadUri.apply)
         reqb <- IO.effect(HttpRequest.newBuilder(uri).method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.body.toArray))).mapError(Throwed.apply)
-        _    <- if (request.headers.nonEmpty) IO.effect(reqb.headers(request.headers.toList.flatMap(x => x._1 :: x._2 :: Nil): _*)).mapError(Throwed.apply) else IO.unit
+        _    <- if (request.headers.nonEmpty) IO.effect(reqb.headers(request.headers.toList.flatMap(x => x._1 :: x._2 :: Nil) *)).mapError(Throwed.apply) else IO.unit
         req  <- IO.effect(reqb.build()).mapError(Throwed.apply)
         resp <- effectBlocking(cp.client.send(req, BodyHandlers.ofByteArray())).map(resp =>
                     Response(resp.statusCode(), Map.empty, Chunk.fromArray(resp.body()))
@@ -50,12 +50,12 @@ object httpClient {
     } yield resp
 
     def sendAsync(cp: ConnectionPool, request: Request): IO[Err, Response] = { //todo: Err -> ClientErr
-      import scala.jdk.FutureConverters._
+      import scala.jdk.FutureConverters.*
 
       for {
         uri  <- IO.effect(URI(request.url)).mapError(HttpErr.BadUri.apply)
         reqb <- IO.effect(HttpRequest.newBuilder(uri).method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.body.toArray))).mapError(Throwed.apply)
-        _    <- if (request.headers.nonEmpty) IO.effect(reqb.headers(request.headers.toList.flatMap(x => x._1 :: x._2 :: Nil): _*)).mapError(Throwed.apply) else IO.unit
+        _    <- if (request.headers.nonEmpty) IO.effect(reqb.headers(request.headers.toList.flatMap(x => x._1 :: x._2 :: Nil) *)).mapError(Throwed.apply) else IO.unit
         req  <- IO.effect(reqb.build()).mapError(Throwed.apply)
         resp <- ZIO.fromFuture(_ => cp.client.sendAsync(req, BodyHandlers.ofByteArray()).asScala).map(resp =>
                     Response(resp.statusCode(), Map.empty, Chunk.fromArray(resp.body()))
