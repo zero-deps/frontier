@@ -11,7 +11,7 @@ object session {
     for {
       bytes <- UIO.succeed(new Array[Byte](16))
       _     <- UIO.succeed(random.nextBytes(bytes))
-      str <- IO.effectTotal(bytes.hex.utf8)
+      str <- IO.effectTotal(bytes._hex._utf8)
     } yield str
   }
 }

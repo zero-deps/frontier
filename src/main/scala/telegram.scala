@@ -38,7 +38,7 @@ object tg {
       skey        <- IO.effectTotal(SecretKeySpec(secret_key, "HmacSHA256"))
       _           <- IO.effect(hmac_sha256.init(skey)).mapError(Throwed.apply)
       mac_res     <- IO.effect(hmac_sha256.doFinal(data.getBytes("utf8"))).mapError(Throwed.apply)
-      _           <- IO.when(mac_res.hex.utf8 != hash)(IO.fail(TgErr.BadHash))
+      _           <- IO.when(mac_res._hex._utf8 != hash)(IO.fail(TgErr.BadHash))
       now_sec     <- currentTime(TimeUnit.SECONDS)
       _           <- IO.when(now_sec - date > 86400)(IO.fail(TgErr.Outdated))
     } yield ()
