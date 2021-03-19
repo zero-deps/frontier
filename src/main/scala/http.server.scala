@@ -9,11 +9,11 @@ import ws.*
 
 sealed trait Protocol
 case class Http(state: HttpState) extends Protocol
-case class Ws(state: WsState, ctx: WsContextData) extends Protocol
+case class WsProto(state: WsState, ctx: WsContextData) extends Protocol
 
 object Protocol {
   def http: Http = Http(HttpState())
-  def ws(ctx: WsContextData): Ws = Ws(WsState(None, Chunk.empty), ctx)
+  def ws(ctx: WsContextData): WsProto = WsProto(WsState(None, Chunk.empty), ctx)
 }
 
 type HttpHandler[R] = Request => ZIO[Has[R], Nothing, Response]
@@ -69,7 +69,7 @@ def processHttp[R](
       IO.succeed(p)
   }.flatMap{
     case p: Http => IO.succeed(p)
-    case p: Ws   =>
+    case p: WsProto =>
       val ctx: ULayer[WsContext] = ZLayer.succeed(p.ctx)
       for {
         _ <- wsh(Open).provideSomeLayer[Has[R]](ctx)
@@ -80,7 +80,7 @@ def processWs[R](
   ch: SocketChannel
 , wsh: WsHandler[R]
 )(
-  protocol: Ws
+  protocol: WsProto
 , chunk: Chunk[Byte]
 ): ZIO[Has[R], Throwable, Protocol] =
   val state = protocol.state
@@ -111,7 +111,7 @@ def httpProtocol[R](
     data <-
       data match
         case p: Http => processHttp(ch, hth, wsh)(p, chunk)
-        case p: Ws => processWs(ch, wsh)(p, chunk)
+        case p: WsProto => processWs(ch, wsh)(p, chunk)
     _ <- state.set(data)
   } yield unit
 
