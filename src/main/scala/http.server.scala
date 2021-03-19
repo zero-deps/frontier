@@ -16,20 +16,20 @@ object Protocol {
   def ws(ctx: WsContextData): Ws = Ws(WsState(None, Chunk.empty), ctx)
 }
 
-type HttpHandler = Request => ZIO[Any, Nothing, Response]
-type WsHandler = Msg => ZIO[WsContext, Nothing, Unit]
+type HttpHandler[R] = Request => ZIO[Has[R], Nothing, Response]
+type WsHandler[R] = Msg => ZIO[WsContext & Has[R], Nothing, Unit]
 
-def processHttp(
+def processHttp[R](
   ch: SocketChannel
-, hth: HttpHandler
-, wsh: WsHandler
+, hth: HttpHandler[R]
+, wsh: WsHandler[R]
 )(
   protocol: Http
 , chunk: Chunk[Byte]
-): Task[Protocol] =
+): ZIO[Has[R], Throwable, Protocol] =
   val x1: IO[BadReq.type, HttpState] =
     http.processChunk(chunk, protocol.state)
-  val x2: IO[BadReq.type | BadReq.type, (Protocol, Option[Response])] =
+  val x2: ZIO[Has[R], BadReq.type | BadReq.type, (Protocol, Option[Response])] =
     x1.flatMap{
       case s: MsgDone =>
         for {
@@ -71,18 +71,18 @@ def processHttp(
     case p: Http => IO.succeed(p)
     case p: Ws   =>
       val ctx: ULayer[WsContext] = ZLayer.succeed(p.ctx)
-      wsh(Open).provideLayer(ctx).catchAllCause(err =>
-        IO.effect(println(s"ws err ${err.prettyPrint}")) //todo: ?
-      ).ignore *> IO.succeed(p)
+      for {
+        _ <- wsh(Open).provideSomeLayer[Has[R]](ctx)
+      } yield p
   }
 
-def processWs(
+def processWs[R](
   ch: SocketChannel
-, handler: WsHandler
+, wsh: WsHandler[R]
 )(
   protocol: Ws
 , chunk: Chunk[Byte]
-): Task[Protocol] =
+): ZIO[Has[R], Throwable, Protocol] =
   val state = protocol.state
   val newState = ws.parseHeader(state.copy(data=state.data ++ chunk))
   newState match
@@ -91,38 +91,42 @@ def processWs(
       val payload = processMask(h.mask, h.maskN, data)
       val msg = read(h.opcode, payload)
       val ctx: ULayer[WsContext] = ZLayer.succeed(protocol.ctx)
-      handler(msg).provideLayer(ctx).catchAllCause(err =>
-          IO.effect(println(s"ws err ${err.prettyPrint}"))
-      ).ignore *> processWs(ch, handler)(protocol.copy(state=WsState(None, rem)), Chunk.empty)
+      for {
+        _ <- wsh(msg).provideSomeLayer[Has[R]](ctx)
+        r <- processWs(ch, wsh)(protocol.copy(state=WsState(None, rem)), Chunk.empty)
+      } yield r
     case state => 
       IO.succeed(protocol.copy(state=state))
 
-def httpProtocol(
+def httpProtocol[R](
   ch: SocketChannel
-, h1: HttpHandler
-, h2: WsHandler
+, hth: HttpHandler[R]
+, wsh: WsHandler[R]
 , state: Ref[Protocol]
 )(
   chunk: Chunk[Byte]
-): IO[Throwable, Unit] =
+): ZIO[Has[R], Throwable, Unit] =
   for {
     data <- state.get
     data <-
       data match
-        case p: Http => processHttp(ch, h1, h2)(p, chunk)
-        case p: Ws => processWs(ch, h2)(p, chunk)
+        case p: Http => processHttp(ch, hth, wsh)(p, chunk)
+        case p: Ws => processWs(ch, wsh)(p, chunk)
     _ <- state.set(data)
   } yield unit
 
-def bind(
+def bind[R](
   addr: SocketAddress
-, hth: UIO[HttpHandler]
-, wsh: UIO[WsHandler]
-): Task[Unit] =
-  tcp.bind(addr, 1, ch =>
-    for {
-      state <- Ref.make[Protocol](Protocol.http)
-      h1 <- hth
-      h2 <- wsh
-    } yield httpProtocol(ch, h1, h2, state)
-  )
+, hth: HttpHandler[R]
+, wsh: WsHandler[R]
+): ZIO[Has[R], Throwable, Unit] =
+  for {
+    r <- ZIO.environment[Has[R]]
+    _ <- tcp.bind(addr, 1, ch =>
+      for {
+        state <- Ref.make[Protocol](Protocol.http)
+        h = (x: Request) => hth(x)
+        w = (x: Msg) => wsh(x)
+      } yield httpProtocol(ch, h, w, state)(_).provide(r)
+    )
+  } yield unit
