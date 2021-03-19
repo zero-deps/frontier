@@ -1,6 +1,7 @@
 package ftier
+package http
 
-import zio.test._, Assertion._
+import zio.test.*, Assertion.*
 
 object UrlSpec extends DefaultRunnableSpec:
   def spec = suite("UrlSpec")(
