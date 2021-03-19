@@ -22,7 +22,7 @@ type WsContext = Has[WsContextData]
 object Ws {
   def req: ZIO[WsContext, Nothing, Request] = ZIO.access(_.get.req)
   def send(msg: Msg): ZIO[WsContext, Nothing, Unit] = ZIO.accessM(_.get.send(msg))
-  def close(): ZIO[WsContext, CloseErr, Unit] = ZIO.accessM(_.get.close.mapError(CloseErr(_)))
+  def close(): ZIO[WsContext, Nothing, Unit] = ZIO.accessM(_.get.close.orDie)
 }
 
 def getNum(from: Int, size: Int, chunk: Chunk[Byte]): Option[Long] = {

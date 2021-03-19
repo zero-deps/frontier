@@ -4,8 +4,10 @@ package udp
 import zio.*, console.*
 import zio.nio.*, channels.{Channel as _, *}, core.*
 
-case class ChannelRead(read: IO[NoAddr.type, Tuple2[/*host:*/String,Chunk[Byte]]])
+type Host = String
+case class ChannelRead(read: IO[NoAddr.type, Tuple2[Host, Chunk[Byte]]])
 case class ChannelWrite(send: Chunk[Byte] => IO[Nothing, Unit])
+object NoAddr
 
 object ChannelWrite {
   /* Creates synchronized Connection on read and write */

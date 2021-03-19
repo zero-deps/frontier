@@ -42,7 +42,9 @@ case class MsgDone(msg: HttpMessage) extends HttpState
 //Transfer-Encoding: chunked
 //multipart/*
 
-def processChunk(chunk: Chunk[Byte], s: HttpState): IO[BadContentLength.type, HttpState] =
+object BadReq
+
+def processChunk(chunk: Chunk[Byte], s: HttpState): IO[BadReq.type, HttpState] =
   s match {
     case state: AwaitHeader =>
       var prev = state.prev
@@ -72,7 +74,7 @@ def processChunk(chunk: Chunk[Byte], s: HttpState): IO[BadContentLength.type, Ht
     case _: MsgDone => processChunk(chunk, HttpState())
   }
 
-def parseHeader(pos: Int, chunk: Chunk[Byte]): IO[BadContentLength.type, HttpState] =
+def parseHeader(pos: Int, chunk: Chunk[Byte]): IO[BadReq.type, HttpState] =
   for {
     split    <- IO.succeed(chunk.splitAt(pos + 1))
     (header, body) = split
@@ -83,7 +85,7 @@ def parseHeader(pos: Int, chunk: Chunk[Byte]): IO[BadContentLength.type, HttpSta
     // _        <- queue.offer(body)
     // stream   <- IO.succeed(Stream.fromQueueWithShutdown(queue))
     msg      <- IO.succeed(HttpMessage(line1, headers, body))
-    len      <- headers.get("Content-Length").map(l => IO.fromOption(l.toIntOption).orElseFail(BadContentLength)).getOrElse(IO.succeed(0))
+    len      <- headers.get("Content-Length").map(l => IO.fromOption(l.toIntOption).orElseFail(BadReq)).getOrElse(IO.succeed(0))
   } yield {
     if (msg.body.length >= len) {
         MsgDone(msg)
@@ -92,20 +94,20 @@ def parseHeader(pos: Int, chunk: Chunk[Byte]): IO[BadContentLength.type, HttpSta
     }
   }
 
-def toReq(msg: HttpMessage): IO[BadFirstLine.type, Request] = {
+def toReq(msg: HttpMessage): IO[BadReq.type, Request] = {
   msg.line1.split(' ').toVector match {
     case method +: url +: _ => IO.succeed(Request(method, url, msg.headers, msg.body))
-    case _ => IO.fail(BadFirstLine)
+    case _ => IO.fail(BadReq)
   }
 }
 
-def toResp(msg: HttpMessage): IO[BadFirstLine.type, Response] = {
-  msg.line1.split(' ').toVector match {
-    case _ +: code +: _ =>
-      IO.fromOption(code.toIntOption).orElseFail(BadFirstLine).map(c => Response(c, msg.headers, msg.body))
-    case _ => IO.fail(BadFirstLine)
-  }
-}
+// def toResp(msg: HttpMessage): IO[BadReq.type, Response] = {
+//   msg.line1.split(' ').toVector match {
+//     case _ +: code +: _ =>
+//       IO.fromOption(code.toIntOption).orElseFail(BadReq).map(c => Response(c, msg.headers, msg.body))
+//     case _ => IO.fail(BadReq)
+//   }
+// }
 
 def build(resp: Response): Chunk[Byte] =
   Chunk.fromArray(

@@ -30,7 +30,9 @@ object tg {
   object QueryRes:
     def apply(x: String): QueryRes = x
 
-  def validate(hash: String, date: Long, data: String, token: String): ZIO[Clock, BadHash.type | Outdated.type, Unit] = {
+  object Invalid
+
+  def validate(hash: String, date: Long, data: String, token: String): ZIO[Clock, Invalid.type, Unit] = {
     for {
       sha256      <- IO.effectTotal(MessageDigest.getInstance("SHA-256"))
       hmac_sha256 <- IO.effectTotal(Mac.getInstance("HmacSHA256"))
@@ -38,9 +40,9 @@ object tg {
       skey        <- IO.effectTotal(SecretKeySpec(secret_key, "HmacSHA256"))
       _           <- IO.effect(hmac_sha256.init(skey)).orDie
       mac_res     <- IO.effect(hmac_sha256.doFinal(data.getBytes("utf8"))).orDie
-      _           <- IO.when(mac_res._hex._utf8 != hash)(IO.fail(BadHash))
+      _           <- IO.when(mac_res._hex._utf8 != hash)(IO.fail(Invalid))
       now_sec     <- currentTime(TimeUnit.SECONDS)
-      _           <- IO.when(now_sec - date > 86400)(IO.fail(Outdated))
+      _           <- IO.when(now_sec - date > 86400)(IO.fail(Invalid))
     } yield ()
   }
 

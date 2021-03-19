@@ -27,9 +27,9 @@ def processHttp(
   protocol: Http
 , chunk: Chunk[Byte]
 ): Task[Protocol] =
-  val x1: IO[BadContentLength.type, HttpState] =
+  val x1: IO[BadReq.type, HttpState] =
     http.processChunk(chunk, protocol.state)
-  val x2: IO[BadContentLength.type | BadFirstLine.type, (Protocol, Option[Response])] =
+  val x2: IO[BadReq.type | BadReq.type, (Protocol, Option[Response])] =
     x1.flatMap{
       case s: MsgDone =>
         for {
@@ -57,9 +57,8 @@ def processHttp(
       case s => 
         IO.succeed((protocol.copy(state=s), None))
     }
-  val x3 = x2.catchAll{ (x: BadContentLength.type | BadFirstLine.type) => x match
-    case BadContentLength => IO.succeed((Protocol.http, Response(400).some))
-    case BadFirstLine => IO.succeed((Protocol.http, Response(400).some))
+  val x3 = x2.catchAll{
+    case BadReq => IO.succeed((Protocol.http, Response(400).some))
   }
   x3.flatMap{ 
     case (p, Some(resp)) if resp.code == 101 =>

@@ -37,6 +37,8 @@ import java.time.Duration
 //     _ <- tcp.close(c).orDie
 // } yield v
 
+class BadUri(e: Throwable)
+
 def send(cp: ConnectionPool, request: Request): ZIO[Blocking, BadUri, Response] = for {
     uri  <- IO.effect(URI(request.url)).mapError(BadUri(_))
     reqb <- IO.effect(HttpRequest.newBuilder(uri).method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.body.toArray))).orDie
