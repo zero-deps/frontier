@@ -45,7 +45,7 @@ object tg {
   }
 
   object push {
-    import httpClient.*
+    import http.client.*
     import java.net.URLEncoder
     import zio.blocking.*
     def sendMessage(token: String, text: String, telegramId: Int, muted: Boolean): ZIO[Blocking, BadUri, Unit] = {
