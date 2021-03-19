@@ -42,7 +42,7 @@ object http {
   //Transfer-Encoding: chunked
   //multipart/*
 
-  def processChunk(chunk: Chunk[Byte], s: HttpState): IO[HttpErr, HttpState] =
+  def processChunk(chunk: Chunk[Byte], s: HttpState): IO[BadContentLength.type, HttpState] =
     s match {
       case state: AwaitHeader =>
         var prev = state.prev
@@ -72,7 +72,7 @@ object http {
       case _: MsgDone => processChunk(chunk, HttpState())
     }
 
-  def parseHeader(pos: Int, chunk: Chunk[Byte]): IO[HttpErr, HttpState] =
+  def parseHeader(pos: Int, chunk: Chunk[Byte]): IO[BadContentLength.type, HttpState] =
     for {
       split    <- IO.succeed(chunk.splitAt(pos + 1))
       (header, body) = split
@@ -83,7 +83,7 @@ object http {
       // _        <- queue.offer(body)
       // stream   <- IO.succeed(Stream.fromQueueWithShutdown(queue))
       msg      <- IO.succeed(HttpMessage(line1, headers, body))
-      len      <- headers.get("Content-Length").map(l => parseInt(l).orElseFail(HttpErr.BadContentLength)).getOrElse(IO.succeed(0))
+      len      <- headers.get("Content-Length").map(l => IO.fromOption(l.toIntOption).orElseFail(BadContentLength)).getOrElse(IO.succeed(0))
     } yield {
       if (msg.body.length >= len) {
           MsgDone(msg)
@@ -92,18 +92,18 @@ object http {
       }
     }
 
-  def toReq(msg: HttpMessage): IO[HttpErr, Request] = {
+  def toReq(msg: HttpMessage): IO[BadFirstLine.type, Request] = {
     msg.line1.split(' ').toVector match {
       case method +: url +: _ => IO.succeed(Request(method, url, msg.headers, msg.body))
-      case _ => IO.fail(HttpErr.BadFirstLine)
+      case _ => IO.fail(BadFirstLine)
     }
   }
   
-  def toResp(msg: HttpMessage): IO[HttpErr, Response] = {
+  def toResp(msg: HttpMessage): IO[BadFirstLine.type, Response] = {
     msg.line1.split(' ').toVector match {
       case _ +: code +: _ =>
-        parseInt(code).orElseFail(HttpErr.BadFirstLine).map(c => Response(c, msg.headers, msg.body))
-      case _ => IO.fail(HttpErr.BadFirstLine)
+        IO.fromOption(code.toIntOption).orElseFail(BadFirstLine).map(c => Response(c, msg.headers, msg.body))
+      case _ => IO.fail(BadFirstLine)
     }
   }
 

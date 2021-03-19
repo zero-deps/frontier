@@ -33,33 +33,32 @@ object httpClient {
 
     // def send(cp: ConnectionPool, addr: SocketAddress, req: Request): IO[Err, Response] = for {
     //     p <- Promise.make[HttpErr, Response]
-    //     c <- tcp.connect(cp, channel => Ref.make[HttpState](HttpState()).map(state => httpProtocol(channel, state, p)), addr).mapError(Throwed.apply)
-    //     _ <- tcp.write(c, build(req)).mapError(Throwed.apply)
+    //     c <- tcp.connect(cp, channel => Ref.make[HttpState](HttpState()).map(state => httpProtocol(channel, state, p)), addr).orDie
+    //     _ <- tcp.write(c, build(req)).orDie
     //     v <- p.await
-    //     _ <- tcp.close(c).mapError(Throwed.apply)
+    //     _ <- tcp.close(c).orDie
     // } yield v
 
-    def send(cp: ConnectionPool, request: Request): ZIO[Blocking, Err, Response] = for {
-        uri  <- IO.effect(URI(request.url)).mapError(HttpErr.BadUri.apply)
-        reqb <- IO.effect(HttpRequest.newBuilder(uri).method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.body.toArray))).mapError(Throwed.apply)
-        _    <- if (request.headers.nonEmpty) IO.effect(reqb.headers(request.headers.toList.flatMap(x => x._1 :: x._2 :: Nil) *)).mapError(Throwed.apply) else IO.unit
-        req  <- IO.effect(reqb.build()).mapError(Throwed.apply)
+    def send(cp: ConnectionPool, request: Request): ZIO[Blocking, BadUri, Response] = for {
+        uri  <- IO.effect(URI(request.url)).mapError(BadUri(_))
+        reqb <- IO.effect(HttpRequest.newBuilder(uri).method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.body.toArray))).orDie
+        _    <- if (request.headers.nonEmpty) IO.effect(reqb.headers(request.headers.toList.flatMap(x => x._1 :: x._2 :: Nil) *)).orDie else IO.unit
+        req  <- IO.effect(reqb.build()).orDie
         resp <- effectBlocking(cp.client.send(req, BodyHandlers.ofByteArray())).map(resp =>
                     Response(resp.statusCode(), Map.empty, Chunk.fromArray(resp.body()))
-                ).mapError(Throwed.apply)
+                ).orDie
     } yield resp
 
-    def sendAsync(cp: ConnectionPool, request: Request): IO[Err, Response] = { //todo: Err -> ClientErr
+    def sendAsync(cp: ConnectionPool, request: Request): IO[BadUri, Response] = {
       import scala.jdk.FutureConverters.*
-
       for {
-        uri  <- IO.effect(URI(request.url)).mapError(HttpErr.BadUri.apply)
-        reqb <- IO.effect(HttpRequest.newBuilder(uri).method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.body.toArray))).mapError(Throwed.apply)
-        _    <- if (request.headers.nonEmpty) IO.effect(reqb.headers(request.headers.toList.flatMap(x => x._1 :: x._2 :: Nil) *)).mapError(Throwed.apply) else IO.unit
-        req  <- IO.effect(reqb.build()).mapError(Throwed.apply)
+        uri  <- IO.effect(URI(request.url)).mapError(BadUri(_))
+        reqb <- IO.effect(HttpRequest.newBuilder(uri).method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.body.toArray))).orDie
+        _    <- if (request.headers.nonEmpty) IO.effect(reqb.headers(request.headers.toList.flatMap(x => x._1 :: x._2 :: Nil) *)).orDie else IO.unit
+        req  <- IO.effect(reqb.build()).orDie
         resp <- ZIO.fromFuture(_ => cp.client.sendAsync(req, BodyHandlers.ofByteArray()).asScala).map(resp =>
                     Response(resp.statusCode(), Map.empty, Chunk.fromArray(resp.body()))
-                ).mapError(Throwed.apply)
+                ).orDie
       } yield resp
     }
 

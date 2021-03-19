@@ -3,12 +3,12 @@ package ftier
 import zio.*, console.*
 import zio.nio.*, channels.{Channel as _, *}, core.*
 
-final case class ChannelRead(read: IO[Err, Tuple2[/*host:*/String,Chunk[Byte]]])
-final case class ChannelWrite(send: Chunk[Byte] => IO[Err, Unit])
+case class ChannelRead(read: IO[NoAddr.type, Tuple2[/*host:*/String,Chunk[Byte]]])
+case class ChannelWrite(send: Chunk[Byte] => IO[Nothing, Unit])
 
 object ChannelWrite {
   /* Creates synchronized Connection on read and write */
-  def withLock(write: Chunk[Byte] => IO[Err, Unit]): UIO[ChannelWrite] =
+  def withLock(write: Chunk[Byte] => IO[Nothing, Unit]): UIO[ChannelWrite] =
     for {
       writeLock <- Semaphore.make(1)
     } yield {
@@ -16,10 +16,10 @@ object ChannelWrite {
     }
 }
 
-final class Bind
-  ( val isOpen: IO[Err, Boolean]
-  , val close: IO[Err, Unit]
-  , val localAddress: IO[Err, SocketAddress]
+class Bind
+  ( val isOpen: IO[Nothing, Boolean]
+  , val close: IO[Nothing, Unit]
+  , val localAddress: IO[Nothing, SocketAddress]
   )
 
 package object udp {
@@ -27,16 +27,16 @@ package object udp {
 
   object Udp {
     trait Service {
-      def bind(localAddr: SocketAddress)(connectionHandler: ChannelRead => IO[Err, Unit]): Managed[Err, Bind]
-      def connect(to: SocketAddress): Managed[Err, ChannelWrite]
+      def bind(localAddr: SocketAddress)(connectionHandler: ChannelRead => IO[Nothing, Unit]): Managed[Nothing, Bind]
+      def connect(to: SocketAddress): Managed[Nothing, ChannelWrite]
     }
 
     def live(mtu: Int): ZLayer[ZEnv, Nothing, Udp] = ZLayer.fromFunction{ env =>
       new Udp.Service {
-        def bind(addr: SocketAddress)(connectionHandler: ChannelRead => IO[Err, Unit]): Managed[Err, Bind] =
+        def bind(addr: SocketAddress)(connectionHandler: ChannelRead => IO[Nothing, Unit]): Managed[Nothing, Bind] =
           DatagramChannel
             .bind(Some(addr))
-            .mapError(Throwed.apply)
+            .orDie
             .withEarlyRelease
             .onExit(x => putStrLn(s"shutting down server=$x"))
             .mapM {
@@ -47,22 +47,22 @@ package object udp {
                     buffer =>
                       server
                         .receive(buffer)
-                        .mapError(Throwed.apply)
+                        .orDie
                         .tap(_ => buffer.flip)
                         .map {
                           case Some(addr) =>
                             ChannelRead(
                               for {
                                 rem <- buffer.remaining
-                                h   <- IO.require(UdpErr.NoAddr)(IO.succeed(addr.inetSocketAddress.map(_.hostString)))
-                                x   <- buffer.getChunk(rem).mapError(Throwed.apply)
+                                h   <- IO.require(NoAddr)(IO.succeed(addr.inetSocketAddress.map(_.hostString)))
+                                x   <- buffer.getChunk(rem).orDie
                               } yield h -> x
                             )
                           case None =>
-                            ChannelRead(IO.fail(UdpErr.NoAddr))
+                            ChannelRead(IO.fail(NoAddr))
                         }
                         .flatMap(conn =>
-                          connectionHandler(conn).catchAll(ex => putStrLn(ex.toString))
+                          connectionHandler(conn)
                         )
                   )
                   .forever
@@ -70,31 +70,31 @@ package object udp {
                   .as {
                     val local = server.localAddress
                       .flatMap(opt => IO.effect(opt.get).orDie)
-                      .mapError(Throwed(_))
-                    new Bind(server.isOpen, close.unit, local)
+                      .orDie
+                    Bind(server.isOpen, close.unit, local)
                   }
             }
             .provide(env)
 
-        def connect(to: SocketAddress): Managed[Err, ChannelWrite] =
+        def connect(to: SocketAddress): Managed[Nothing, ChannelWrite] =
           DatagramChannel
             .connect(to)
             .mapM(
               channel =>
                 ChannelWrite.withLock(
-                  channel.write(_).mapError(Throwed.apply).unit
+                  channel.write(_).orDie.unit
                 )
             )
-            .mapError(Throwed.apply)
+            .orDie
       }
     }
   }
 
-  def bind[R <: Udp](localAddr: SocketAddress)(connectionHandler: ChannelRead => ZIO[R, Err, Unit]): ZManaged[R, Err, Bind] = {
+  def bind[R <: Udp](localAddr: SocketAddress)(connectionHandler: ChannelRead => ZIO[R, Nothing, Unit]): ZManaged[R, Nothing, Bind] = {
     ZManaged.environment[R].flatMap(env => env.get[Udp.Service].bind(localAddr)(conn => connectionHandler(conn).provide(env)))
   }
 
-  def connect(to: SocketAddress): ZManaged[Udp, Err, ChannelWrite] =
+  def connect(to: SocketAddress): ZManaged[Udp, Nothing, ChannelWrite] =
     ZManaged.environment[Udp].flatMap(_.get.connect(to))
 }
 

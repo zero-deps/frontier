@@ -18,15 +18,14 @@ object ws {
   case class WsHeader(fin: Boolean, opcode: Int, mask: Boolean, maskN: Int, size: Int)
   case class WsState(h: Option[WsHeader], data: Chunk[Byte])
 
-  case class WsContextData(req: Request, send: Msg => IO[Err, Unit], close: Task[Unit])
+  case class WsContextData(req: Request, send: Msg => IO[WriteErr, Unit], close: Task[Unit])
   type WsContext = Has[WsContextData]
   
   object Ws {
     def req: ZIO[WsContext, Nothing, Request] = ZIO.access(_.get.req)
-    def send(msg: Msg): ZIO[WsContext, Err, Unit] = ZIO.accessM(_.get.send(msg))
-    def close: ZIO[WsContext, Err, Unit] = ZIO.accessM(_.get.close.mapError(WsErr.CloseErr.apply))
+    def send(msg: Msg): ZIO[WsContext, WriteErr, Unit] = ZIO.accessM(_.get.send(msg))
+    def close(): ZIO[WsContext, CloseErr, Unit] = ZIO.accessM(_.get.close.mapError(CloseErr(_)))
   }
-
 
   def getNum(from: Int, size: Int, chunk: Chunk[Byte]): Option[Long] = {
     if (chunk.length > from + size) {

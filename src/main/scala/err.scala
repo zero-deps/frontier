@@ -1,31 +1,14 @@
 package ftier
 
-sealed trait Err
+object BadFirstLine
+object BadContentLength
 
-case class Throwed(e: Throwable) extends Err
+class BadUri(e: Throwable)
 
-sealed trait HttpErr extends Err
-object HttpErr {
-  case object BadFirstLine        extends HttpErr
-  case object BadContentLength    extends HttpErr
-  case object NotHandled          extends HttpErr
-  case class BadUri(e: Throwable) extends HttpErr
-}
+class WriteErr(e: Throwable)
+class CloseErr(e: Throwable)
 
-object WsErr {
-  case class WriteMessageErr(e: Throwable) extends Err
-  case class CloseErr       (e: Throwable) extends Err
-}
+object BadHash
+object Outdated
 
-object TgErr {
-  case object BadHash  extends Err
-  case object Outdated extends Err
-}
-
-object UdpErr {
-  case object NoAddr extends Err
-}
-
-case object ParseIntErr extends Err
-
-given CanEqual[Err, Err] = CanEqual.derived
+object NoAddr

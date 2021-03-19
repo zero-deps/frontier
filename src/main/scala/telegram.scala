@@ -30,17 +30,17 @@ object tg {
   object QueryRes:
     def apply(x: String): QueryRes = x
 
-  def validate(hash: String, date: Long, data: String, token: String): ZIO[Clock, Err, Unit] = {
+  def validate(hash: String, date: Long, data: String, token: String): ZIO[Clock, BadHash.type | Outdated.type, Unit] = {
     for {
       sha256      <- IO.effectTotal(MessageDigest.getInstance("SHA-256"))
       hmac_sha256 <- IO.effectTotal(Mac.getInstance("HmacSHA256"))
       secret_key  <- IO.effectTotal(sha256.digest(token.getBytes("ascii")))
       skey        <- IO.effectTotal(SecretKeySpec(secret_key, "HmacSHA256"))
-      _           <- IO.effect(hmac_sha256.init(skey)).mapError(Throwed.apply)
-      mac_res     <- IO.effect(hmac_sha256.doFinal(data.getBytes("utf8"))).mapError(Throwed.apply)
-      _           <- IO.when(mac_res._hex._utf8 != hash)(IO.fail(TgErr.BadHash))
+      _           <- IO.effect(hmac_sha256.init(skey)).orDie
+      mac_res     <- IO.effect(hmac_sha256.doFinal(data.getBytes("utf8"))).orDie
+      _           <- IO.when(mac_res._hex._utf8 != hash)(IO.fail(BadHash))
       now_sec     <- currentTime(TimeUnit.SECONDS)
-      _           <- IO.when(now_sec - date > 86400)(IO.fail(TgErr.Outdated))
+      _           <- IO.when(now_sec - date > 86400)(IO.fail(Outdated))
     } yield ()
   }
 
@@ -48,10 +48,10 @@ object tg {
     import httpClient.*
     import java.net.URLEncoder
     import zio.blocking.*
-    def sendMessage(token: String, text: String, telegramId: Int, muted: Boolean): ZIO[Blocking, Err, Unit] = {
+    def sendMessage(token: String, text: String, telegramId: Int, muted: Boolean): ZIO[Blocking, BadUri, Unit] = {
       for {
         url     <- IO.succeed(s"https://api.telegram.org/bot$token/sendMessage")
-        payload <- IO.effect(s"chat_id=$telegramId&disable_notification=$muted&text="+URLEncoder.encode(text, "utf8")).mapError(Throwed.apply)
+        payload <- IO.effect(s"chat_id=$telegramId&disable_notification=$muted&text="+URLEncoder.encode(text, "utf8")).orDie
         cp      <- connectionPool
         _       <- send(cp, http.Request("POST", url, Map("Content-Type" -> "application/x-www-form-urlencoded"), Chunk.fromArray(payload.getBytes("utf8"))))
       } yield ()

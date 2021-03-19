@@ -13,19 +13,25 @@ object httpServer {
   case class Http(state: HttpState) extends Protocol
   case class Ws(state: WsState, ctx: WsContextData) extends Protocol
 
-  type HttpHandler = PartialFunction[Request, IO[Nothing, Response]]
-  type WsHandler = PartialFunction[Msg, ZIO[WsContext, Err, Unit]]
+  type HttpHandler = Request => ZIO[Any, Nothing, Response]
+  type WsHandler = PartialFunction[Msg, ZIO[WsContext, Nothing, Unit]]
 
-  def processHttp(channel: SocketChannel, handler: HttpHandler, handler2: WsHandler)(protocol: Http, chunk: Chunk[Byte]): Task[Protocol] = {
+  def processHttp(
+    channel: SocketChannel
+  , handler: HttpHandler
+  , handler2: WsHandler
+  )(
+    protocol: Http
+  , chunk: Chunk[Byte]
+  ): Task[Protocol] = {
     http.processChunk(chunk, protocol.state).flatMap{
       case s: MsgDone =>
         for {
           req  <- toReq(s.msg)
-          resp <- ZIO.fromOption(handler.lift(req)).orElseFail(HttpErr.NotHandled)
-          resp <- resp
+          resp <- handler(req)
         } yield {
           if (resp.code == 101) {
-            val writeF: Msg => IO[Err, Unit] = msg => write(msg).mapError(WsErr.WriteMessageErr.apply).flatMap(channel.write(_).unit.mapError(Throwed.apply))
+            val writeF: Msg => IO[WriteErr, Unit] = msg => write(msg).mapError(WriteErr(_)).flatMap(channel.write(_).unit.orDie)
             val p = Protocol.ws(WsContextData(req, writeF, channel.close))
             (p, Some(resp))
           } else {
@@ -36,9 +42,7 @@ object httpServer {
       case s => 
         IO.succeed((protocol.copy(state=s), None))
     }.catchAll{
-      case HttpErr.NotHandled => IO.succeed((Protocol.http, Some(Response(501))))
-      case e: HttpErr         => IO.succeed((Protocol.http, Some(Response(400))))
-      // case e                  => IO.succeed((Protocol.http, Some(Response(500))))
+      case _ => IO.succeed((Protocol.http, Some(Response(404)))) //todo: remove
     }.flatMap{ 
       case (p, Some(resp)) if resp.code == 101 => channel.write(build(resp)) *> IO.succeed(p)
       case (p, Some(resp)) => channel.write(build(resp)) *> channel.close *> IO.succeed(p)
