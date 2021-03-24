@@ -1,8 +1,9 @@
 version := zero.git.version()
 scalaVersion := "3.0.0-RC1"
+crossScalaVersions := "3.0.0-RC1" :: "2.13.5" :: Nil
 
 libraryDependencies ++= Seq(
-  "com.fasterxml.jackson.module" % "jackson-module-scala_2.13" % "2.12.1"
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.12.1" cross CrossVersion.for3Use2_13
 , "dev.zio" %% "zio-test-sbt" % "1.0.5" % Test
 )
 testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")

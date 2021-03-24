@@ -7,6 +7,7 @@ lazy val zio_nio_core = project
     )
   , testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
   , scalaVersion := "3.0.0-RC1"
+  , crossScalaVersions := "3.0.0-RC1" :: "2.13.5" :: Nil
   )
 
 resolvers += Resolver.JCenterRepository
