@@ -8,15 +8,17 @@ libraryDependencies ++= Seq(
 )
 testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 
-scalacOptions ++= Seq(
-  "-language:postfixOps"
-, "-language:strictEquality"
-// , "-Yexplicit-nulls"
-, "-source", "future-migration"
-, "-deprecation"
-, "-rewrite"
-, "release", "11"
-)
+scalacOptions += "-language:postfixOps"
+scalacOptions ++= {
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, 13)) => Nil
+    case _ => Seq(
+      "-language:strictEquality"//, "-Yexplicit-nulls"
+    , "-source", "future-migration", "-deprecation", "-rewrite"
+    , "release", "11"
+    )
+  }
+}
 
 dependsOn(zio_nio, ext)
 lazy val zio_nio = project.in(file("deps/zio-nio/nio"))
