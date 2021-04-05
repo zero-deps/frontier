@@ -80,7 +80,7 @@ def read(opcode: Int, payload: Chunk[Byte]): Msg = opcode match {
 
 def write(msg: Msg): Task[ByteBuffer] = {
   msg match {
-    case Text(v)   => message(0x1, Chunk.fromArray(v.getBytes("UTF-8")))
+    case Text(v)   => message(0x1, Chunk.fromArray(v.getBytes("UTF-8").nn))
     case Binary(v) => message(0x2, v)
     case Close     => message(0x8, Chunk.empty)
     case Ping      => message(0x9, Chunk.empty)
@@ -130,9 +130,9 @@ def upgrade(req: UpgradeRequest): UIO[Response] = upgrade(req.key)
 def upgrade(key: String): UIO[Response] = {
   import java.util.Base64
   import java.security.MessageDigest
-  val crypt = MessageDigest.getInstance("SHA-1")
+  val crypt = MessageDigest.getInstance("SHA-1").nn
   crypt.reset()
-  crypt.update((key + guid).getBytes("UTF-8"))
+  crypt.update((key + guid).getBytes("UTF-8").nn)
   val sha1 = crypt.digest()
   val accept = new String(Base64.getEncoder().encode(sha1))
   IO.succeed(Response(101, Map(

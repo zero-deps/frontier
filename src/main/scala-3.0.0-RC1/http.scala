@@ -12,8 +12,8 @@ case class Request(
   lazy val cookies: UIO[Map[String, String]] =
     IO.succeed(
       headers.get("Cookie").map(
-        _.split("; ").view.map(_.split('=')).collect{
-          case Array(k, v) => (k, v)
+        _.split("; ").nn.view.map(_.nn.split('=').nn).collect{
+          case Array(k, v) => (k.nn, v.nn)
         }.toMap
       ).getOrElse(Map.empty)
     )
@@ -78,9 +78,9 @@ def parseHeader(pos: Int, chunk: Chunk[Byte]): IO[BadReq.type, HttpState] =
   for {
     split    <- IO.succeed(chunk.splitAt(pos + 1))
     (header, body) = split
-    lines    <- IO.succeed(new String(header.toArray).split("\r\n").toVector)
-    headers  <- IO.succeed(lines.drop(1).map(h => h.split(": ")).collect{ case Array(h, k) => (h,k) }.to(Map))
-    line1    <- IO.succeed(lines.headOption.getOrElse(""))
+    lines    <- IO.succeed(new String(header.toArray).split("\r\n").nn.toVector)
+    headers  <- IO.succeed(lines.drop(1).map(h => h.split(": ").nn).collect{ case Array(h, k) => (h.nn, k.nn) }.to(Map))
+    line1    <- IO.succeed(lines.headOption.getOrElse("").nn)
     // queue    <- Queue.bounded[Chunk[Byte]](100)
     // _        <- queue.offer(body)
     // stream   <- IO.succeed(Stream.fromQueueWithShutdown(queue))
@@ -113,12 +113,12 @@ def build(resp: Response): Chunk[Byte] =
   Chunk.fromArray(
     s"""|HTTP/1.1 ${resp.code} \r
         |${resp.headers.map{case (k, v) => s"$k: $v\r\n"}.mkString}\r
-        |""".stripMargin.getBytes("UTF-8")
+        |""".stripMargin.getBytes("UTF-8").nn
   ) ++ resp.body
 
 def build(req: Request): Chunk[Byte] =
   Chunk.fromArray(
     s"""${req.method} ${req.url} HTTP/1.1\r
        |${req.headers.map{case (k, v) => s"$k: $v\r\n"}.mkString}\r
-       |""".stripMargin.getBytes("UTF-8")
+       |""".stripMargin.getBytes("UTF-8").nn
   )

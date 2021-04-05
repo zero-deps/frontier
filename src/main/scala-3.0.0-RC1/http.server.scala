@@ -3,7 +3,6 @@ package http
 package server
 
 import zio.*, nio.*, core.*, core.channels.*
-import zero.ext.*, option.*
 
 import ws.*
 
@@ -44,21 +43,21 @@ def processHttp[R <: Has[?]](
                 , msg => for {
                     bb <- write(msg).orDie
                     _ <- ch.write(bb).orDie
-                  } yield unit
+                  } yield ()
                 , ch.close
                 )
               )
-            (p, resp.some)
+            (p, Some(resp))
           } else {
             val p = Protocol.http
-            (p, resp.some)
+            (p, Some(resp))
           }
         }
       case s => 
         IO.succeed((protocol.copy(state=s), None))
     }
   val x3: RIO[R, (Protocol, Option[Response])] = x2.catchAll{
-    case BadReq => IO.succeed((Protocol.http, Response(400).some))
+    case BadReq => IO.succeed((Protocol.http, Some(Response(400))))
     case e: Throwable => IO.fail(e)
   }
   x3.flatMap{ 
@@ -114,7 +113,7 @@ def httpProtocol[R <: Has[?]](
         case p: Http => processHttp(ch, hth, wsh)(p, chunk)
         case p: WsProto => processWs(ch, wsh)(p, chunk)
     _ <- state.set(data)
-  } yield unit
+  } yield ()
 
 def bind[R <: Has[?]](
   addr: SocketAddress
@@ -130,4 +129,4 @@ def bind[R <: Has[?]](
         w = (x: Msg) => wsh(x)
       } yield httpProtocol(ch, h, w, state)(_).provide(r)
     )
-  } yield unit
+  } yield ()

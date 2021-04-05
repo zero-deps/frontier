@@ -2,7 +2,6 @@ package ftier
 package http
 
 import annotation.*
-import zero.ext.*, option.*
 
 case class Url(p: P, q: String)
 
@@ -18,10 +17,10 @@ object Url:
   def unapply(url: String): Option[Url] =
     url.split('?').toList match
       case p :: Nil =>
-        Url(makep(p), "").some
+        Some(Url(makep(p), ""))
       case p :: q :: Nil =>
-        Url(makep(p), q).some
-      case _ => none
+        Some(Url(makep(p), q))
+      case _ => None
 
 enum P derives CanEqual:
   case S(s: String, n: P)
@@ -35,21 +34,21 @@ object `&`:
   def unapply(q: String): Option[(String,String)] =
     val xs = q.split('&')
     if xs.isEmpty then
-      none
+      None
     else
-      (xs.init.mkString("&"), xs.last).some
+      Some((xs.init.mkString("&"), xs.last))
 
 object `*`:
   def unapply(x: String): Option[(String, String)] =
     x.split('=').toList match
-      case a :: b :: Nil => (a -> b).some
-      case _ => none
+      case a :: b :: Nil => Some(a -> b)
+      case _ => None
 
 object `/`:
   def unapply(x: P): Option[(P, String)] =
     x match
-      case P.S(a, b) => (b, a).some
-      case P.R => none
+      case P.S(a, b) => Some((b, a))
+      case P.R => None
 
   def unapply(x: String): Option[(P, String)] =
     Url.unapply(x).map(_.p).flatMap(unapply)

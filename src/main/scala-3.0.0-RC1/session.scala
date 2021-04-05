@@ -2,7 +2,6 @@ package ftier
 package session
 
 import java.security.SecureRandom
-import zero.ext.*
 import zio.*
 
 private val random = new SecureRandom

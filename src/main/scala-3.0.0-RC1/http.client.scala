@@ -41,11 +41,11 @@ class BadUri(e: Throwable)
 
 def send(cp: ConnectionPool, request: Request): ZIO[Blocking, BadUri, Response] = for {
     uri  <- IO.effect(URI(request.url)).mapError(BadUri(_))
-    reqb <- IO.effect(HttpRequest.newBuilder(uri).method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.body.toArray))).orDie
+    reqb <- IO.effect(HttpRequest.newBuilder(uri).method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.body.toArray)).nn).orDie
     _    <- if (request.headers.nonEmpty) IO.effect(reqb.headers(request.headers.toList.flatMap(x => x._1 :: x._2 :: Nil) *)).orDie else IO.unit
     req  <- IO.effect(reqb.build()).orDie
-    resp <- effectBlocking(cp.client.send(req, BodyHandlers.ofByteArray())).map(resp =>
-                Response(resp.statusCode(), Map.empty, Chunk.fromArray(resp.body()))
+    resp <- effectBlocking(cp.client.send(req, BodyHandlers.ofByteArray()).nn).map(resp =>
+              Response(resp.statusCode().nn, Map.empty, Chunk.fromArray(resp.body().nn))
             ).orDie
 } yield resp
 
@@ -53,11 +53,11 @@ def sendAsync(cp: ConnectionPool, request: Request): IO[BadUri, Response] = {
   import scala.jdk.FutureConverters.*
   for {
     uri  <- IO.effect(URI(request.url)).mapError(BadUri(_))
-    reqb <- IO.effect(HttpRequest.newBuilder(uri).method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.body.toArray))).orDie
+    reqb <- IO.effect(HttpRequest.newBuilder(uri).method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.body.toArray)).nn).orDie
     _    <- if (request.headers.nonEmpty) IO.effect(reqb.headers(request.headers.toList.flatMap(x => x._1 :: x._2 :: Nil) *)).orDie else IO.unit
     req  <- IO.effect(reqb.build()).orDie
-    resp <- ZIO.fromFuture(_ => cp.client.sendAsync(req, BodyHandlers.ofByteArray()).asScala).map(resp =>
-                Response(resp.statusCode(), Map.empty, Chunk.fromArray(resp.body()))
+    resp <- ZIO.fromFuture(_ => cp.client.sendAsync(req, BodyHandlers.ofByteArray()).nn.asScala).map(resp =>
+                Response(resp.statusCode().nn, Map.empty, Chunk.fromArray(resp.body().nn))
             ).orDie
   } yield resp
 }
@@ -70,5 +70,5 @@ val connectionPool: UIO[ConnectionPool] =
       .version(HttpClient.Version.HTTP_1_1)
       .followRedirects(HttpClient.Redirect.NORMAL)
       .connectTimeout(Duration.ofSeconds(20))
-      .build()
+      .build().nn
   ))
