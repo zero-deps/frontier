@@ -3,6 +3,7 @@ package udp
 
 import zio.*, console.*
 import zio.nio.*, channels.{Channel as _, *}, core.*
+import util.{*, given}
 
 type Host = String
 case class ChannelRead(read: IO[NoAddr.type, Tuple2[Host, Chunk[Byte]]])

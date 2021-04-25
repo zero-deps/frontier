@@ -2,6 +2,7 @@ package ftier
 package http
 
 import annotation.*
+import util.{*, given}
 
 case class Url(p: P, q: String)
 

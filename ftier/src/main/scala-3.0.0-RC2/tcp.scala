@@ -4,6 +4,7 @@ package tcp
 import zio.*, duration.*, nio.*, core.*, core.channels.*
 import java.nio.channels.{ServerSocketChannel as JServerSocketChannel, SocketChannel as JSocketChannel, CancelledKeyException}
 import java.io.IOException
+import util.{*, given}
 
 val size2mb = 2 * 1024 * 1024
 
@@ -45,7 +46,7 @@ def read(buffer: ByteBuffer, key: SelectionKey): Task[(Int, Chunk[Byte])] =
         c <- chunks.get
         _ <- chunks.set(c ++ a)
       } yield if (c.length > size2mb) -1 else n).catchSome{
-        case err: IOException if err.getMessage.contains("Connection reset") =>
+        case err: IOException if err.getMessage.toOption.exists(_.contains("Connection reset")) =>
           IO.succeed(-1)
       }.repeatWhile(_ > 0)
     chunks <- chunks.get

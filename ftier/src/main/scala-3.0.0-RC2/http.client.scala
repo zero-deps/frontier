@@ -7,6 +7,7 @@ import java.net.http.{HttpClient, HttpRequest}
 import java.net.http.HttpResponse.BodyHandlers
 import java.net.URI
 import java.time.Duration
+import util.{*, given}
     
 // type ConnectionPool = tcp.ConnectionPool
 // type Connection = tcp.Connection
@@ -37,11 +38,11 @@ import java.time.Duration
 //     _ <- tcp.close(c).orDie
 // } yield v
 
-class BadUri(e: Throwable)
+case class BadUri(e: Throwable) extends Throwable(e)
 
 def send(cp: ConnectionPool, request: Request): ZIO[Blocking, BadUri, Response] = for {
     uri  <- IO.effect(URI(request.url)).mapError(BadUri(_))
-    reqb <- IO.effect(HttpRequest.newBuilder(uri).method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.body.toArray)).nn).orDie
+    reqb <- IO.effect(HttpRequest.newBuilder(uri).nn.method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.body.toArray)).nn).orDie
     _    <- if (request.headers.nonEmpty) IO.effect(reqb.headers(request.headers.toList.flatMap(x => x._1 :: x._2 :: Nil) *)).orDie else IO.unit
     req  <- IO.effect(reqb.build()).orDie
     resp <- effectBlocking(cp.client.send(req, BodyHandlers.ofByteArray()).nn).map(resp =>
@@ -53,7 +54,7 @@ def sendAsync(cp: ConnectionPool, request: Request): IO[BadUri, Response] = {
   import scala.jdk.FutureConverters.*
   for {
     uri  <- IO.effect(URI(request.url)).mapError(BadUri(_))
-    reqb <- IO.effect(HttpRequest.newBuilder(uri).method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.body.toArray)).nn).orDie
+    reqb <- IO.effect(HttpRequest.newBuilder(uri).nn.method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.body.toArray)).nn).orDie
     _    <- if (request.headers.nonEmpty) IO.effect(reqb.headers(request.headers.toList.flatMap(x => x._1 :: x._2 :: Nil) *)).orDie else IO.unit
     req  <- IO.effect(reqb.build()).orDie
     resp <- ZIO.fromFuture(_ => cp.client.sendAsync(req, BodyHandlers.ofByteArray()).nn.asScala).map(resp =>
@@ -66,9 +67,9 @@ case class ConnectionPool(client: HttpClient)
 
 val connectionPool: UIO[ConnectionPool] = 
   IO.succeed(ConnectionPool(
-    HttpClient.newBuilder()
-      .version(HttpClient.Version.HTTP_1_1)
-      .followRedirects(HttpClient.Redirect.NORMAL)
-      .connectTimeout(Duration.ofSeconds(20))
+    HttpClient.newBuilder().nn
+      .version(HttpClient.Version.HTTP_1_1).nn
+      .followRedirects(HttpClient.Redirect.NORMAL).nn
+      .connectTimeout(Duration.ofSeconds(20)).nn
       .build().nn
   ))

@@ -1,11 +1,11 @@
 lazy val ftier = project
-  .in(file("."))
+  .in(file("ftier"))
   .settings(
-    scalaVersion := "3.0.0-RC1"
-  , crossScalaVersions := "3.0.0-RC1" :: "2.13.5" :: Nil
+    scalaVersion := "3.0.0-RC2"
+  , crossScalaVersions := "3.0.0-RC2" :: "2.13.5" :: Nil
   , libraryDependencies ++= Seq(
-      "com.fasterxml.jackson.module" % "jackson-module-scala_2.13" % "2.12.1"
-    , "dev.zio" %% "zio-test-sbt" % "1.0.5" % Test
+      "com.fasterxml.jackson.module" % "jackson-module-scala_2.13" % "2.12.3"
+    , "dev.zio" %% "zio-test-sbt" % "1.0.6" % Test
     )
   , testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
   , scalacOptions += "-language:postfixOps"
@@ -29,11 +29,11 @@ lazy val zio_nio = project
   .dependsOn(zio_nio_core)
   .settings(
     libraryDependencies ++= Seq(
-      "dev.zio" %% "zio-test-sbt" % "1.0.5" % Test
+      "dev.zio" %% "zio-test-sbt" % "1.0.6" % Test
     )
   , testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
-  , scalaVersion := "3.0.0-RC1"
-  , crossScalaVersions := "3.0.0-RC1" :: "2.13.5" :: Nil
+  , scalaVersion := "3.0.0-RC2"
+  , crossScalaVersions := "3.0.0-RC2" :: "2.13.5" :: Nil
   , scalacOptions += "-nowarn"
   )
   .dependsOn(zio_nio_core)
@@ -42,12 +42,12 @@ lazy val zio_nio_core = project
   .in(file("deps/zio-nio/nio-core"))
   .settings(
     libraryDependencies ++= Seq(
-      "dev.zio" %% "zio-streams"  % "1.0.5"
-    , "dev.zio" %% "zio-test-sbt" % "1.0.5" % Test
+      "dev.zio" %% "zio-streams"  % "1.0.6"
+    , "dev.zio" %% "zio-test-sbt" % "1.0.6" % Test
     )
   , testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
-  , scalaVersion := "3.0.0-RC1"
-  , crossScalaVersions := "3.0.0-RC1" :: "2.13.5" :: Nil
+  , scalaVersion := "3.0.0-RC2"
+  , crossScalaVersions := "3.0.0-RC2" :: "2.13.5" :: Nil
   , scalacOptions += "-nowarn"
   )
 

@@ -3,6 +3,7 @@ package ws
 
 import zio.*, nio.*, core.*
 import http.*
+import util.{*, given}
 
 sealed trait Msg
 case class Text(v: String) extends Msg
@@ -134,7 +135,7 @@ def upgrade(key: String): UIO[Response] = {
   crypt.reset()
   crypt.update((key + guid).getBytes("UTF-8").nn)
   val sha1 = crypt.digest()
-  val accept = new String(Base64.getEncoder().encode(sha1))
+  val accept = String(Base64.getEncoder().nn.encode(sha1))
   IO.succeed(Response(101, Map(
       "Upgrade"              -> "websocket",
       "Connection"           -> "Upgrade",

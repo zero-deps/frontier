@@ -5,6 +5,8 @@ import java.security.MessageDigest
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 import zio.*, clock.*
+import util.{*, given}
+import json.*
 
 object tg {
   enum Update:
@@ -20,7 +22,7 @@ object tg {
   opaque type Hash = String
 
   extension (x: ChatId)
-    def toBytes: Array[Byte] = math.BigInt(x).toByteArray
+    def toBytes: IArray[Byte] = IArray.unsafeFromArray(math.BigInt(x).toByteArray)
 
   object Query:
     def unapply(x: Query): Option[String] = Some(x)
@@ -61,18 +63,18 @@ object tg {
   object reader {
     def find[R, E](xs: Chunk[Byte])(f: Update => ZIO[R, E, Chunk[Byte]]): ZIO[R, E, Chunk[Byte]] = {
       for {
-        obj <- json.readTree(xs)
+        obj <- jtree(xs)
         message = obj.get("message").nn
         r <- f {
           if message != null then
             if message.get("connected_website") != null then
-              Update.ConnectedWebsite(message.get("chat").get("id").asInt.nn)
+              Update.ConnectedWebsite(message.get("chat").nn.get("id").nn.asInt.nn)
             else
-              Update.PrivateQuery(message.get("chat").get("id").asInt.nn, message.get("text").asText.nn)
+              Update.PrivateQuery(message.get("chat").nn.get("id").nn.asInt.nn, message.get("text").nn.asText.nn)
           else
             val iq = obj.get("inline_query").nn
             if iq != null then
-              Update.InlineQuery(iq.get("id").asText.nn, iq.get("query").asText.nn)
+              Update.InlineQuery(iq.get("id").nn.asText.nn, iq.get("query").nn.asText.nn)
             else
               Update.OtherUpdate
         }
@@ -103,8 +105,8 @@ object tg {
       message_text: String
     )
 
-    def answerInlineQuery(id: Id, queryRes: QueryRes, hash: Hash, query: Query): UIO[IArray[Byte]] = {
-      json.encode(AnswerInlineQuery(
+    def answerInlineQuery(id: Id, queryRes: QueryRes, hash: Hash, query: Query): UIO[IArray[Byte]] =
+      jencode(AnswerInlineQuery(
         inline_query_id=id
       , results=Result(
           id=hash
@@ -112,7 +114,6 @@ object tg {
         , title=queryRes
         ) :: Nil
       ))
-    }
 
     case class AnswerPrivateQuery(
       method: String = "sendMessage"
@@ -123,14 +124,13 @@ object tg {
     , parse_mode: String = "HTML"
     )
 
-    def answerPrivateQuery(chatId: ChatId, queryRes: QueryRes, rm: Option[ReplyMarkup]=None): UIO[Chunk[Byte]] = {
-      json.encode(AnswerPrivateQuery(
+    def answerPrivateQuery(chatId: ChatId, queryRes: QueryRes, rm: Option[ReplyMarkup]=None): UIO[Chunk[Byte]] =
+      jencode(AnswerPrivateQuery(
         chat_id=chatId
       , text=queryRes
       , disable_notification=true
       , reply_markup=rm
       )).map(bs => Chunk.fromArray(bs.toArray))
-    }
 
     case class AnswerConnectedWebsite(
       method: String = "sendMessage"
@@ -139,12 +139,11 @@ object tg {
     , disable_notification: Boolean
     )
 
-    def answerConnectedWebsite(text: String, chatId: ChatId): UIO[IArray[Byte]] = {
-      json.encode(AnswerConnectedWebsite(
+    def answerConnectedWebsite(text: String, chatId: ChatId): UIO[IArray[Byte]] =
+      jencode(AnswerConnectedWebsite(
         chat_id=chatId
       , text=text
       , disable_notification=true
       ))
-    }
   }
 }

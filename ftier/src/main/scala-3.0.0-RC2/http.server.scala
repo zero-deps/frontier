@@ -3,8 +3,8 @@ package http
 package server
 
 import zio.*, nio.*, core.*, core.channels.*
-
 import ws.*
+import util.{*, given}
 
 sealed trait Protocol
 case class Http(state: HttpState) extends Protocol

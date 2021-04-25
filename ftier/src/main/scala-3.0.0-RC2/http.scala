@@ -2,6 +2,7 @@ package ftier
 package http
 
 import zio.*
+import util.{*, given}
 
 case class Request(
   method: String
@@ -78,8 +79,8 @@ def parseHeader(pos: Int, chunk: Chunk[Byte]): IO[BadReq.type, HttpState] =
   for {
     split    <- IO.succeed(chunk.splitAt(pos + 1))
     (header, body) = split
-    lines    <- IO.succeed(new String(header.toArray).split("\r\n").nn.toVector)
-    headers  <- IO.succeed(lines.drop(1).map(h => h.split(": ").nn).collect{ case Array(h, k) => (h.nn, k.nn) }.to(Map))
+    lines    <- IO.succeed(String(header.toArray).split("\r\n").nn.toVector)
+    headers  <- IO.succeed(lines.drop(1).map(h => h.nn.split(": ").nn).collect{ case Array(h, k) => (h.nn, k.nn) }.to(Map))
     line1    <- IO.succeed(lines.headOption.getOrElse("").nn)
     // queue    <- Queue.bounded[Chunk[Byte]](100)
     // _        <- queue.offer(body)
