@@ -29,5 +29,7 @@ extension (x: Array[Byte])
 
 private val hexs = "0123456789abcdef".getBytes("ascii").nn
 
+inline def unit: Unit = ()
+
 given ceno[A]: CanEqual[None.type, Option[A]] = CanEqual.derived
 given ceaab[A, B]: CanEqual[A, A | B] = CanEqual.derived
