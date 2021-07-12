@@ -19,7 +19,7 @@ object UrlSpec extends DefaultRunnableSpec:
     }
   , test("/a/") {
       assert("/a/" match
-        case Root / "a" => true
+        case Root / "a" / "" => true
         case _ => false
       )(equalTo(true))
     }

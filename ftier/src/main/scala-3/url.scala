@@ -8,7 +8,8 @@ case class Url(p: P, q: String)
 
 object Url:
   def makep(p: String): P =
-    makep(p.split('/').toList.filter(_.nonEmpty), P.R)
+    val xs = if p.endsWith("/") then List("") else Nil
+    makep(p.split('/').toList.filter(_.nonEmpty) ++ xs, P.R)
 
   @tailrec def makep(xs: List[String], acc: P): P =
     xs match
