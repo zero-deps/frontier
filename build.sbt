@@ -14,7 +14,7 @@ lazy val ftier = project
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, 13)) => Nil
         case _ => Seq(
-          "-source", "future-migration", "-deprecation"
+          "-source:future"
         , "-language:strictEquality"
         , "-Yexplicit-nulls"
         , "release", "11"

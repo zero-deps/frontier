@@ -38,7 +38,7 @@ package object udp {
             .bind(Some(addr))
             .mapError(Throwed)
             .withEarlyRelease
-            .onExit(x => putStrLn(s"shutting down server=$x"))
+            // .onExit(x => putStrLn(s"shutting down server=$x"))
             .mapM {
               case (close, server) =>
                 Buffer
