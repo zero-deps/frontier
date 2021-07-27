@@ -50,7 +50,7 @@ object tg {
     import http.client.*
     import java.net.URLEncoder
     import zio.blocking.*
-    def sendMessage(token: String, text: String, telegramId: Int, muted: Boolean): URIO[Blocking, Unit] = {
+    def sendMessage(token: String, text: String, telegramId: ChatId, muted: Boolean): URIO[Blocking, Unit] = {
       (for {
         url     <- IO.succeed(s"https://api.telegram.org/bot$token/sendMessage")
         payload <- IO.effect(s"chat_id=$telegramId&disable_notification=$muted&text="+URLEncoder.encode(text, "utf8")).orDie
