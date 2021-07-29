@@ -19,7 +19,7 @@ def send(cp: ConnectionPool, request: Request): ZIO[Blocking, Err, Response] = f
   req  <- IO.effect(reqb.build()).orDie
   resp <-
     (effectBlocking(cp.client.send(req, BodyHandlers.ofByteArray()).nn).map(resp =>
-      Response(resp.statusCode().nn, Map.empty, Chunk.fromArray(resp.body().nn))
+      Response(resp.statusCode().nn, Nil, Chunk.fromArray(resp.body().nn))
     ).catchAll(e => e.getCause.toOption match
         case Some(e1: java.net.http.HttpConnectTimeoutException) => IO.fail(Timeout)
         case Some(e1) => IO.die(e1)
@@ -36,7 +36,7 @@ def sendAsync(cp: ConnectionPool, request: Request): IO[Err, Response] = {
     req  <- IO.effect(reqb.build()).orDie
     resp <-
       (ZIO.fromFuture(_ => cp.client.sendAsync(req, BodyHandlers.ofByteArray()).nn.asScala).map(resp =>
-        Response(resp.statusCode().nn, Map.empty, Chunk.fromArray(resp.body().nn))
+        Response(resp.statusCode().nn, Nil, Chunk.fromArray(resp.body().nn))
       ).catchAll(e => e.getCause.toOption match
           case Some(e1: java.net.http.HttpConnectTimeoutException) => IO.fail(Timeout)
           case Some(e1) => IO.die(e1)

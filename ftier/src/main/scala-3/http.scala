@@ -22,14 +22,11 @@ case class Request(
     cookies.map(_.get(name))
 end Request
 
-case class Response(code: Int, headers: Map[String, String], body: Chunk[Byte])
-object Response {
-  def apply(
-    code: Int
-  , headers: Map[String, String] = Map.empty
-  , data: Chunk[Byte] = Chunk.empty
-  ): Response = new Response(code, headers, data)
-}
+case class Response
+  ( code: Int
+  , headers: Seq[(String, String)]
+  , body: Chunk[Byte]
+  )
 
 sealed trait HttpState
 object HttpState {

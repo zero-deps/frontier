@@ -136,9 +136,9 @@ def upgrade(key: String): UIO[Response] = {
   crypt.update((key + guid).getBytes("UTF-8").nn)
   val sha1 = crypt.digest()
   val accept = String(Base64.getEncoder().nn.encode(sha1))
-  IO.succeed(Response(101, Map(
-      "Upgrade"              -> "websocket",
-      "Connection"           -> "Upgrade",
-      "Sec-WebSocket-Accept" -> accept,
-  )))
+  IO.succeed(Response(101, Seq(
+    "Upgrade" -> "websocket"
+  , "Connection" -> "Upgrade"
+  , "Sec-WebSocket-Accept" -> accept
+  ), Chunk.empty))
 }

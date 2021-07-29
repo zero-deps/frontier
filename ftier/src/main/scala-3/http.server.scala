@@ -57,7 +57,7 @@ def processHttp[R <: Has[?]](
         IO.succeed((protocol.copy(state=s), None))
     }
   val x3: RIO[R, (Protocol, Option[Response])] = x2.catchAll{
-    case BadReq => IO.succeed((Protocol.http, Some(Response(400))))
+    case BadReq => IO.succeed((Protocol.http, Some(Response(400, Nil, Chunk.empty))))
     case e: Throwable => IO.fail(e)
   }
   x3.flatMap{ 
