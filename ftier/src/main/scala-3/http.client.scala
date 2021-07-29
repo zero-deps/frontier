@@ -7,7 +7,8 @@ import java.net.http.{HttpClient, HttpRequest}
 import java.net.http.HttpResponse.BodyHandlers
 import java.net.URI
 import java.time.Duration
-import util.{*, given}
+
+import ext.{*, given}
 
 case object Timeout
 type Err = Timeout.type

@@ -2,8 +2,9 @@ package ftier
 package ws
 
 import zio.*, nio.*, core.*
+
 import http.*
-import util.{*, given}
+import ext.{*, given}
 
 sealed trait Msg
 case class Text(v: String) extends Msg

@@ -1,8 +1,9 @@
 package ftier
 package http
 
-import annotation.*
-import util.{*, given}
+import scala.annotation.*
+
+import ext.{*, given}
 
 case class Url(p: P, q: String)
 

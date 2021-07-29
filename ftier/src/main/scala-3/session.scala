@@ -3,14 +3,28 @@ package session
 
 import java.security.SecureRandom
 import zio.*
-import util.{*, given}
 
-private val random = new SecureRandom
+import ext.{*, given}
 
-def newid: UIO[String] = {
-  for {
-    bytes <- UIO.succeed(new Array[Byte](16))
-    _     <- UIO.succeed(random.nextBytes(bytes))
-    str <- IO.effectTotal(bytes._hex._utf8)
-  } yield str
-}
+private val rnd = SecureRandom()
+
+def newid: UIO[Array[Byte]] =
+  for
+    xs <- UIO.succeed(new Array[Byte](32))
+    _ <- UIO.succeed(rnd.nextBytes(xs))
+    r <- IO.effectTotal(xs.hex)
+  yield r
+
+def newid_utf8 =
+  for
+    x <- newid
+    r <- IO.effectTotal(x.utf8)
+  yield r
+
+def _newid: Array[Byte] =
+  val xs = new Array[Byte](32)
+  rnd.nextBytes(xs)
+  xs.hex
+
+def _newid_utf8 = _newid.utf8
+

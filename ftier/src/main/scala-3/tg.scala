@@ -5,7 +5,8 @@ import java.security.MessageDigest
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 import zio.*, clock.*
-import util.{*, given}
+
+import ext.{*, given}
 import json.*
 
 object tg {
@@ -40,7 +41,7 @@ object tg {
       skey        <- IO.effectTotal(SecretKeySpec(secret_key, "HmacSHA256"))
       _           <- IO.effect(hmac_sha256.init(skey)).orDie
       mac_res     <- IO.effect(hmac_sha256.doFinal(data.getBytes("utf8").nn).nn).orDie
-      _           <- IO.when(mac_res._hex._utf8 != hash)(IO.fail(Invalid))
+      _           <- IO.when(mac_res.hex.utf8 != hash)(IO.fail(Invalid))
       now_sec     <- currentTime(TimeUnit.SECONDS)
       _           <- IO.when(now_sec - date > 86400)(IO.fail(Invalid))
     } yield ()

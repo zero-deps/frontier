@@ -4,7 +4,8 @@ package tcp
 import zio.*, duration.*, nio.*, core.*, core.channels.*
 import java.nio.channels.{ServerSocketChannel as JServerSocketChannel, SocketChannel as JSocketChannel, CancelledKeyException}
 import java.io.IOException
-import util.{*, given}
+
+import ext.{*, given}
 
 val size2mb = 2 * 1024 * 1024
 
