@@ -11,15 +11,21 @@ case class Request(
 , body: Chunk[Byte] //Stream[Chunk[Byte]]
 ):
   lazy val cookies: UIO[Map[String, String]] =
-    IO.succeed(
-      headers.get("Cookie").map(
-        _.split("; ").nn.view.map(_.nn.split('=').nn).collect{
-          case Array(k, v) => (k.nn, v.nn)
-        }.toMap
-      ).getOrElse(Map.empty)
-    )
+    IO.succeed(_cookies)
+  
   def cookie(name: String): UIO[Option[String]] =
     cookies.map(_.get(name))
+  
+  lazy val _cookies: Map[String, String] =
+    headers.get("Cookie").map(
+      _.split("; ").nn.view.map(_.nn.split('=').nn).collect{
+        case Array(k, v) => (k.nn, v.nn)
+      }.toMap
+    ).getOrElse(Map.empty)
+
+  def _cookie(name: String): Option[String] =
+    _cookies.get(name)
+
 end Request
 
 case class Response
@@ -73,7 +79,7 @@ def processChunk(chunk: Chunk[Byte], s: HttpState): IO[BadReq.type, HttpState] =
   }
 
 def parseHeader(pos: Int, chunk: Chunk[Byte]): IO[BadReq.type, HttpState] =
-  for {
+  for
     split    <- IO.succeed(chunk.splitAt(pos + 1))
     (header, body) = split
     lines    <- IO.succeed(String(header.toArray).split("\r\n").nn.toVector)
@@ -84,13 +90,11 @@ def parseHeader(pos: Int, chunk: Chunk[Byte]): IO[BadReq.type, HttpState] =
     // stream   <- IO.succeed(Stream.fromQueueWithShutdown(queue))
     msg      <- IO.succeed(HttpMessage(line1, headers, body))
     len      <- headers.get("Content-Length").map(l => IO.fromOption(l.toIntOption).orElseFail(BadReq)).getOrElse(IO.succeed(0))
-  } yield {
-    if (msg.body.length >= len) {
-        MsgDone(msg)
-    } else {
-        AwaitBody(msg, len)
-    }
-  }
+  yield
+    if msg.body.length >= len then
+      MsgDone(msg)
+    else
+      AwaitBody(msg, len)
 
 def toReq(msg: HttpMessage): IO[BadReq.type, Request] = {
   msg.line1.split(' ').toVector match {
