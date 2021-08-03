@@ -2,7 +2,7 @@ package ftier
 package http
 package server
 
-import zio.*, nio.*, core.*, core.channels.*
+import zio.*, nio.*, core.*, core.channels.*, stream.*, blocking.*
 import ws.*
 
 import ext.{*, given}
@@ -26,7 +26,7 @@ def processHttp[R <: Has[?]](
 )(
   protocol: Http
 , chunk: Chunk[Byte]
-): RIO[R, Protocol] =
+): RIO[R & Blocking, Protocol] =
   val x1: IO[BadReq.type, HttpState] =
     http.processChunk(chunk, protocol.state)
   val x2: ZIO[R, BadReq.type | Throwable, (Protocol, Option[Response])] =
@@ -58,14 +58,18 @@ def processHttp[R <: Has[?]](
         IO.succeed((protocol.copy(state=s), None))
     }
   val x3: RIO[R, (Protocol, Option[Response])] = x2.catchAll{
-    case BadReq => IO.succeed((Protocol.http, Some(Response(400, Nil, Chunk.empty))))
+    case BadReq => IO.succeed((Protocol.http, Some(Response(400, Nil, ZStream.empty))))
     case e: Throwable => IO.fail(e)
   }
   x3.flatMap{ 
     case (p, Some(resp)) if resp.code == 101 =>
       ch.write(build(resp)) *> IO.succeed(p)
     case (p, Some(resp)) =>
-      ch.write(build(resp)) *> ch.close *> IO.succeed(p)
+      for
+        _ <- ch.write(build(resp))
+        _ <- resp.body.foreachChunk(ch.write)
+        _ <- ch.close
+      yield p
     case (p, None) =>
       IO.succeed(p)
   }.flatMap{
@@ -106,7 +110,7 @@ def httpProtocol[R <: Has[?]](
 , state: Ref[Protocol]
 )(
   chunk: Chunk[Byte]
-): RIO[R, Unit] =
+): RIO[R & Blocking, Unit] =
   for {
     data <- state.get
     data <-
@@ -120,9 +124,9 @@ def bind[R <: Has[?]](
   addr: SocketAddress
 , hth: HttpHandler[R]
 , wsh: WsHandler[R]
-): RIO[R, Unit] =
+): RIO[R & Blocking, Unit] =
   for {
-    r <- ZIO.environment[R]
+    r <- ZIO.environment[R & Blocking]
     _ <- tcp.bind(addr, 1, ch =>
       for {
         state <- Ref.make[Protocol](Protocol.http)

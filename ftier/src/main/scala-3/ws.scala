@@ -1,7 +1,7 @@
 package ftier
 package ws
 
-import zio.*, nio.*, core.*
+import zio.*, nio.*, core.*, stream.*
 
 import http.*
 import ext.{*, given}
@@ -141,5 +141,5 @@ def upgrade(key: String): UIO[Response] = {
     "Upgrade" -> "websocket"
   , "Connection" -> "Upgrade"
   , "Sec-WebSocket-Accept" -> accept
-  ), Chunk.empty))
+  ), ZStream.empty))
 }

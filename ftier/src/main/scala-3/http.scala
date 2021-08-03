@@ -1,8 +1,8 @@
 package ftier
 package http
 
-import zio.*
-import util.{*, given}
+import zio.*, stream.*, blocking.*
+import java.io.IOException
 
 case class Request(
   method: String
@@ -31,7 +31,7 @@ end Request
 case class Response
   ( code: Int
   , headers: Seq[(String, String)]
-  , body: Chunk[Byte]
+  , body: ZStream[Blocking, IOException, Byte]
   )
 
 sealed trait HttpState
@@ -116,7 +116,7 @@ def build(resp: Response): Chunk[Byte] =
     s"""|HTTP/1.1 ${resp.code} \r
         |${resp.headers.map{case (k, v) => s"$k: $v\r\n"}.mkString}\r
         |""".stripMargin.getBytes("UTF-8").nn
-  ) ++ resp.body
+  )
 
 def build(req: Request): Chunk[Byte] =
   Chunk.fromArray(
