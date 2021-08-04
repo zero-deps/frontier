@@ -31,7 +31,7 @@ end Request
 case class Response
   ( code: Int
   , headers: Seq[(String, String)]
-  , body: ZStream[Blocking, IOException, Byte]
+  , body: Option[ZStream[Blocking, Throwable, Byte]]
   )
 
 sealed trait HttpState
@@ -111,16 +111,14 @@ def toReq(msg: HttpMessage): IO[BadReq.type, Request] = {
 //   }
 // }
 
-def build(resp: Response): Chunk[Byte] =
-  Chunk.fromArray(
-    s"""|HTTP/1.1 ${resp.code} \r
-        |${resp.headers.map{case (k, v) => s"$k: $v\r\n"}.mkString}\r
-        |""".stripMargin.getBytes("UTF-8").nn
-  )
+def buildRe(code: Int, headers: Seq[(String, String)]): Chunk[Byte] =
+  Chunk.fromArray(Seq(
+    s"HTTP/1.1 $code \r\n"
+  , headers.map{case (k, v) => s"$k: $v\r\n"}.mkString + "\r\n"
+  ).mkString.getBytes("utf8").nn)
 
 def build(req: Request): Chunk[Byte] =
-  Chunk.fromArray(
-    s"""${req.method} ${req.url} HTTP/1.1\r
-       |${req.headers.map{case (k, v) => s"$k: $v\r\n"}.mkString}\r
-       |""".stripMargin.getBytes("UTF-8").nn
-  )
+  Chunk.fromArray(Seq(
+    s"${req.method} ${req.url} HTTP/1.1\r\n"
+  , req.headers.map{case (k, v) => s"$k: $v\r\n"}.mkString + "\r\n"
+  ).mkString.getBytes("utf8").nn)

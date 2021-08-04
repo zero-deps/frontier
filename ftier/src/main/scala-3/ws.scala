@@ -141,5 +141,5 @@ def upgrade(key: String): UIO[Response] = {
     "Upgrade" -> "websocket"
   , "Connection" -> "Upgrade"
   , "Sec-WebSocket-Accept" -> accept
-  ), ZStream.empty))
+  ), None))
 }

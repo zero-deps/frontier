@@ -58,18 +58,30 @@ def processHttp[R <: Has[?]](
         IO.succeed((protocol.copy(state=s), None))
     }
   val x3: RIO[R, (Protocol, Option[Response])] = x2.catchAll{
-    case BadReq => IO.succeed((Protocol.http, Some(Response(400, Nil, ZStream.empty))))
+    case BadReq => IO.succeed((Protocol.http, Some(Response(400, Nil, None))))
     case e: Throwable => IO.fail(e)
   }
   x3.flatMap{ 
-    case (p, Some(resp)) if resp.code == 101 =>
-      ch.write(build(resp)) *> IO.succeed(p)
-    case (p, Some(resp)) =>
+    case (p, Some(Response(code@ 101, headers, None))) =>
+      ch.write(buildRe(code, headers)) *> IO.succeed(p)
+    
+    case (p, Some(Response(code, headers, None))) =>
+      ch.write(buildRe(code, headers)) *> ch.close
+    
+    case (p, Some(Response(code, headers, Some(body)))) =>
       for
-        _ <- ch.write(build(resp))
-        _ <- resp.body.foreachChunk(ch.write)
+        _ <- ch.write(buildRe(code, headers :+ ("Transfer-Encoding" -> "chunked")))
+        _ <-
+          body.foreachChunk(x =>
+            ch.write(Chunk.fromArray(x.size.toHexString.getBytes("ascii").nn)) *>
+            ch.write(Chunk.fromArray("\r\n".getBytes("ascii").nn)) *>
+            ch.write(x) *>
+            ch.write(Chunk.fromArray("\r\n".getBytes("ascii").nn))
+          )
+        _ <- ch.write(Chunk.fromArray("0\r\n\r\n".getBytes("ascii").nn))
         _ <- ch.close
       yield p
+    
     case (p, None) =>
       IO.succeed(p)
   }.flatMap{
