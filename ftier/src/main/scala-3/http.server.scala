@@ -46,6 +46,7 @@ def processHttp[R <: Has[?]](
                     _ <- ch.write(bb).orDie
                   } yield ()
                 , ch.close
+                , java.util.UUID.randomUUID().toString
                 )
               )
             (p, Some(resp))

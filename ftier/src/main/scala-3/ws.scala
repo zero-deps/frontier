@@ -18,7 +18,7 @@ case class Unknown(opcode: Int, v: Chunk[Byte]) extends Msg
 case class WsHeader(fin: Boolean, opcode: Int, mask: Boolean, maskN: Int, size: Int)
 case class WsState(h: Option[WsHeader], data: Chunk[Byte])
 
-case class WsContextData(req: Request, send: Msg => UIO[Unit], close: Task[Unit])
+case class WsContextData(req: Request, send: Msg => UIO[Unit], close: Task[Unit], uuid: String)
 type WsContext = Has[WsContextData]
 
 object Ws {
