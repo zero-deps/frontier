@@ -8,7 +8,7 @@ case class Request(
   method: String
 , url: String
 , headers: Map[String, String]
-, body: Chunk[Byte] //Stream[Chunk[Byte]]
+, body: ZStream[Any, Nothing, Byte]
 ):
   lazy val cookies: UIO[Map[String, String]] =
     IO.succeed(_cookies)
@@ -98,7 +98,7 @@ def parseHeader(pos: Int, chunk: Chunk[Byte]): IO[BadReq.type, HttpState] =
 
 def toReq(msg: HttpMessage): IO[BadReq.type, Request] = {
   msg.line1.split(' ').toVector match {
-    case method +: url +: _ => IO.succeed(Request(method, url, msg.headers, msg.body))
+    case method +: url +: _ => IO.succeed(Request(method, url, msg.headers, ZStream.fromChunk(msg.body)))
     case _ => IO.fail(BadReq)
   }
 }

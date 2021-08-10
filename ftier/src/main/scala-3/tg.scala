@@ -4,7 +4,7 @@ import java.util.concurrent.TimeUnit
 import java.security.MessageDigest
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
-import zio.*, clock.*
+import zio.*, clock.*, stream.*
 
 import ext.{*, given}
 import json.*
@@ -56,7 +56,7 @@ object tg {
         url     <- IO.succeed(s"https://api.telegram.org/bot$token/sendMessage")
         payload <- IO.effect(s"chat_id=$telegramId&disable_notification=$muted&text="+URLEncoder.encode(text, "utf8")).orDie
         cp      <- connectionPool
-        _       <- send(cp, http.Request("POST", url, Map("Content-Type" -> "application/x-www-form-urlencoded"), Chunk.fromArray(payload.getBytes("utf8").nn)))
+        _       <- send(cp, http.Request("POST", url, Map("Content-Type" -> "application/x-www-form-urlencoded"), ZStream.fromChunk(Chunk.fromArray(payload.getBytes("utf8").nn))))
       } yield unit).catchAll{
         case http.client.Timeout => IO.unit
       }

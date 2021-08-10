@@ -15,7 +15,8 @@ type Err = Timeout.type
 
 def send(cp: ConnectionPool, request: Request): ZIO[Blocking, Err, Response] = for {
   uri  <- IO.effect(URI(request.url)).orDie
-  reqb <- IO.effect(HttpRequest.newBuilder(uri).nn.method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.body.toArray)).nn).orDie
+  body <- request.body.runCollect
+  reqb <- IO.effect(HttpRequest.newBuilder(uri).nn.method(request.method, HttpRequest.BodyPublishers.ofByteArray(body.toArray)).nn).orDie
   _    <- if request.headers.nonEmpty then IO.effect(reqb.headers(request.headers.toList.flatMap(x => x._1 :: x._2 :: Nil) *)).orDie else IO.unit
   req  <- IO.effect(reqb.build()).orDie
   resp <-
@@ -32,7 +33,8 @@ def sendAsync(cp: ConnectionPool, request: Request): IO[Err, Response] = {
   import scala.jdk.FutureConverters.*
   for {
     uri  <- IO.effect(URI(request.url)).orDie
-    reqb <- IO.effect(HttpRequest.newBuilder(uri).nn.method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.body.toArray)).nn).orDie
+    body <- request.body.runCollect
+    reqb <- IO.effect(HttpRequest.newBuilder(uri).nn.method(request.method, HttpRequest.BodyPublishers.ofByteArray(body.toArray)).nn).orDie
     _    <- if request.headers.nonEmpty then IO.effect(reqb.headers(request.headers.toList.flatMap(x => x._1 :: x._2 :: Nil) *)).orDie else IO.unit
     req  <- IO.effect(reqb.build()).orDie
     resp <-
