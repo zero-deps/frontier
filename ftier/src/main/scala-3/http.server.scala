@@ -9,20 +9,23 @@ import ext.{*, given}
 
 sealed trait Protocol
 case class Http(state: HttpState) extends Protocol
-case class WsProto(state: WsState, ctx: WsContextData) extends Protocol
+case class WsProto[R](state: WsState, ctx: WsContextData, handler: WsHandler[R]) extends Protocol
 
 object Protocol {
   def http: Http = Http(HttpState())
-  def ws(ctx: WsContextData): WsProto = WsProto(WsState(None, Chunk.empty), ctx)
+  def ws[R](ctx: WsContextData, handler: WsHandler[R]): WsProto[R] = WsProto(WsState(None, Chunk.empty), ctx, handler)
 }
 
-type HttpHandler[R] = Request => RIO[R, Response]
+type HttpHandler[R] = Request => RIO[R, Resp]
 type WsHandler[R] = Msg => RIO[WsContext & R, Unit]
+
+sealed trait Resp
+case class HttpResp(resp: Response) extends Resp
+case class WsResp[R](req: UpgradeRequest, handler: WsHandler[R]) extends Resp
 
 def processHttp[R <: Has[?]](
   ch: SocketChannel
-, hth: HttpHandler[R]
-, wsh: WsHandler[R]
+, h: HttpHandler[R]
 )(
   protocol: Http
 , chunk: Chunk[Byte]
@@ -34,27 +37,27 @@ def processHttp[R <: Has[?]](
       case s: MsgDone =>
         for {
           req  <- toReq(s.msg)
-          resp <- hth(req)
-        } yield {
-          if (resp.code == 101) {
-            val p =
-              Protocol.ws(
-                WsContextData(
-                  req
-                , msg => for {
-                    bb <- write(msg).orDie
-                    _ <- ch.write(bb).orDie
-                  } yield ()
-                , ch.close
-                , java.util.UUID.randomUUID().toString
+          resp <- h(req)
+          res <- resp match
+            case x: WsResp[R] =>
+              val p =
+                Protocol.ws(
+                  WsContextData(
+                    req
+                  , msg => for {
+                      bb <- write(msg).orDie
+                      _ <- ch.write(bb).orDie
+                    } yield ()
+                  , ch.close
+                  , java.util.UUID.randomUUID().toString
+                  ),
+                  x.handler
                 )
-              )
-            (p, Some(resp))
-          } else {
-            val p = Protocol.http
-            (p, Some(resp))
-          }
-        }
+              upgrade(x.req).map(resp => (p, Some(resp)))
+            case x: HttpResp =>
+              val p = Protocol.http
+              IO.succeed((p, Some(x.resp)))
+        } yield res
       case s => 
         IO.succeed((protocol.copy(state=s), None))
     }
@@ -87,18 +90,17 @@ def processHttp[R <: Has[?]](
       IO.succeed(p)
   }.flatMap{
     case p: Http => IO.succeed(p)
-    case p: WsProto =>
+    case p: WsProto[R] =>
       val ctx: ULayer[WsContext] = ZLayer.succeed(p.ctx)
       for {
-        _ <- wsh(Open).provideSomeLayer[R](ctx)
+        _ <- p.handler(Open).provideSomeLayer[R](ctx)
       } yield p
   }
 
 def processWs[R <: Has[?]](
   ch: SocketChannel
-, wsh: WsHandler[R]
 )(
-  protocol: WsProto
+  protocol: WsProto[R]
 , chunk: Chunk[Byte]
 ): RIO[R, Protocol] =
   val state = protocol.state
@@ -110,16 +112,15 @@ def processWs[R <: Has[?]](
       val msg = read(h.opcode, payload)
       val ctx: ULayer[WsContext] = ZLayer.succeed(protocol.ctx)
       for {
-        _ <- wsh(msg).provideSomeLayer[R](ctx)
-        r <- processWs(ch, wsh)(protocol.copy(state=WsState(None, rem)), Chunk.empty)
+        _ <- protocol.handler(msg).provideSomeLayer[R](ctx)
+        r <- processWs(ch)(protocol.copy(state=WsState(None, rem)), Chunk.empty)
       } yield r
     case state => 
       IO.succeed(protocol.copy(state=state))
 
 def httpProtocol[R <: Has[?]](
   ch: SocketChannel
-, hth: HttpHandler[R]
-, wsh: WsHandler[R]
+, h: HttpHandler[R]
 , state: Ref[Protocol]
 )(
   chunk: Chunk[Byte]
@@ -128,23 +129,21 @@ def httpProtocol[R <: Has[?]](
     data <- state.get
     data <-
       data match
-        case p: Http => processHttp(ch, hth, wsh)(p, chunk)
-        case p: WsProto => processWs(ch, wsh)(p, chunk)
+        case p: Http => processHttp(ch, h)(p, chunk)
+        case p: WsProto[R] => processWs(ch)(p, chunk)
     _ <- state.set(data)
   } yield ()
 
 def bind[R <: Has[?]](
   addr: SocketAddress
-, hth: HttpHandler[R]
-, wsh: WsHandler[R]
+, h: HttpHandler[R]
 ): RIO[R & Blocking, Unit] =
   for {
     r <- ZIO.environment[R & Blocking]
     _ <- tcp.bind(addr, 1, ch =>
       for {
         state <- Ref.make[Protocol](Protocol.http)
-        h = (x: Request) => hth(x)
-        w = (x: Msg) => wsh(x)
-      } yield httpProtocol(ch, h, w, state)(_).provide(r)
+        hh = (x: Request) => h(x)
+      } yield httpProtocol(ch, hh, state)(_).provide(r)
     )
   } yield ()
