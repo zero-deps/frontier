@@ -31,8 +31,19 @@ end Request
 case class Response
   ( code: Int
   , headers: Seq[(String, String)]
-  , body: Option[ZStream[Blocking, Throwable, Byte]]
+  , body: Option[(ZStream[Blocking, Throwable, Byte], OnError, onSuccess)]
   )
+
+object Response:
+  def empty(code: Int, headers: Seq[(String, String)]): Response =
+    new Response(code, headers, None)
+  def apply(code: Int, headers: Seq[(String, String)], body: ZStream[Blocking, Throwable, Byte]): Response =
+    new Response(code, headers, Some(body, _ => UIO.unit, _ => UIO.unit))
+  def apply(code: Int, headers: Seq[(String, String)], body: ZStream[Blocking, Throwable, Byte], onError: OnError, onSuccess: onSuccess): Response =
+    new Response(code, headers, Some((body, onError, onSuccess)))
+
+type OnError = Throwable => UIO[Unit]
+type onSuccess = Unit => UIO[Unit]
 
 sealed trait HttpState
 object HttpState {

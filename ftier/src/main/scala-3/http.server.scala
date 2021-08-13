@@ -62,33 +62,35 @@ def processHttp[R <: Has[?]](
         IO.succeed((protocol.copy(state=s), None))
     }
   val x3: RIO[R, (Protocol, Option[Response])] = x2.catchAll{
-    case BadReq => IO.succeed((Protocol.http, Some(Response(400, Nil, None))))
+    case BadReq => IO.succeed((Protocol.http, Some(Response.empty(400, Nil))))
     case e: Throwable => IO.fail(e)
   }
-  x3.flatMap{ 
+  val x4: RIO[R & Blocking, Protocol] = x3.tap{ 
     case (p, Some(Response(code@ 101, headers, None))) =>
-      ch.write(buildRe(code, headers)) *> IO.succeed(p)
+      ch.write(buildRe(code, headers))
     
     case (p, Some(Response(code, headers, None))) =>
       ch.write(buildRe(code, headers)) *> ch.close
     
-    case (p, Some(Response(code, headers, Some(body)))) =>
+    case (p, Some(Response(code, headers, Some((body, onError, onSuccess))))) =>
       for
         _ <- ch.write(buildRe(code, headers :+ ("Transfer-Encoding" -> "chunked")))
         _ <-
           body.foreachChunk(x =>
-            ch.write(Chunk.fromArray(x.size.toHexString.getBytes("ascii").nn)) *>
-            ch.write(Chunk.fromArray("\r\n".getBytes("ascii").nn)) *>
-            ch.write(x) *>
-            ch.write(Chunk.fromArray("\r\n".getBytes("ascii").nn))
-          )
+            for
+              _ <- ch.write(Chunk.fromArray(x.size.toHexString.getBytes("ascii").nn))
+              _ <- ch.write(Chunk.fromArray("\r\n".getBytes("ascii").nn))
+              _ <- ch.write(x)
+              _ <- ch.write(Chunk.fromArray("\r\n".getBytes("ascii").nn))
+            yield unit
+          ).tapBoth(onError, onSuccess)
         _ <- ch.write(Chunk.fromArray("0\r\n\r\n".getBytes("ascii").nn))
         _ <- ch.close
-      yield p
+      yield unit
     
-    case (p, None) =>
-      IO.succeed(p)
-  }.flatMap{
+    case (p, None) => IO.unit
+  }.map(_._1)
+  x4.flatMap{
     case p: Http => IO.succeed(p)
     case p: WsProto[R] =>
       val ctx: ULayer[WsContext] = ZLayer.succeed(p.ctx)

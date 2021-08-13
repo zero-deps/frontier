@@ -26,9 +26,12 @@ def select(selector: Selector, f: SelectionKey => Task[Any]): Task[Unit] =
       IO.foreach(keys){ key =>
         Managed.make(IO.succeed(key))(selector.removeKey(_).ignore).use{ k =>
           IO.whenM(k.isValid) {
-            f(k).catchAllCause(err =>
-              IO.effect(println(s"key err ${err.prettyPrint}"))
-            )
+            f(k).catchSome{
+              case x: IOException if x.getMessage == "Broken pipe" =>
+                IO.effectTotal(println("IOException: Broken pipe"))
+            }.catchAllCause{ cause =>
+              IO.effectTotal(println(s"Key error: ${cause.prettyPrint}"))
+            }
           }
         }
       }
