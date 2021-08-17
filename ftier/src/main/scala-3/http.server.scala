@@ -13,7 +13,7 @@ case class WsProto[R](state: WsState, ctx: WsContextData, handler: WsHandler[R])
 
 object Protocol {
   def http: Http = Http(HttpState())
-  def ws[R](ctx: WsContextData, handler: WsHandler[R]): WsProto[R] = WsProto(WsState(None, Chunk.empty), ctx, handler)
+  def ws[R](ctx: WsContextData, handler: WsHandler[R]): WsProto[R] = WsProto(WsState(None, Chunk.empty, None), ctx, handler)
 }
 
 type HttpHandler[R] = Request => RIO[R, Resp]
@@ -108,14 +108,14 @@ def processWs[R <: Has[?]](
   val state = protocol.state
   val newState = ws.parseHeader(state.copy(data=state.data ++ chunk))
   newState match
-    case WsState(Some(h: WsHeader), chunk) if h.size <= chunk.length =>
+    case WsState(Some(h: WsHeader), chunk, fragmentsOpcode) if h.size <= chunk.length =>
       val (data, rem) = chunk.splitAt(h.size)
       val payload = processMask(h.mask, h.maskN, data)
-      val msg = read(h.opcode, payload)
+      val msg = read(h.opcode, payload, h.fin, fragmentsOpcode)
       val ctx: ULayer[WsContext] = ZLayer.succeed(protocol.ctx)
       for {
         _ <- protocol.handler(msg).provideSomeLayer[R](ctx)
-        r <- processWs(ch)(protocol.copy(state=WsState(None, rem)), Chunk.empty)
+        r <- processWs(ch)(protocol.copy(state=WsState(None, rem, fragmentsOpcode)), Chunk.empty)
       } yield r
     case state => 
       IO.succeed(protocol.copy(state=state))
