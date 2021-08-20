@@ -23,7 +23,7 @@ type WsHandler[R] = Msg => RIO[WsContext & R, Unit]
 
 def processHttp[R <: Has[?]](ch: SocketChannel, h: HttpHandler[R])(protocol: Protocol.Http, chunk: Chunk[Byte]): RIO[R & Blocking, Protocol] =
   http.processChunk(chunk, protocol.state).flatMap{
-    case s: MsgDone =>
+    case s: HttpState.MsgDone =>
       for
         req <- toReq(s.msg)
         resp <- h(req)

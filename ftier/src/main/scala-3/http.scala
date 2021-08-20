@@ -4,6 +4,8 @@ package http
 import zio.*, stream.*, blocking.*
 import java.io.IOException
 
+import ext.given
+
 enum Body derives CanEqual:
   case Chunked(c: Chunk[Byte])
   case FormData(files: Seq[(String, String)], params: Seq[(String, String)])
@@ -100,16 +102,16 @@ object Response:
 type OnError = Throwable => UIO[Unit]
 type onSuccess = Unit => UIO[Unit]
 
-sealed trait HttpState
 object HttpState:
   def apply(): HttpState = AwaitHeader(0, false, Chunk.empty) 
 
-case class AwaitHeader(prev: Byte, prevrn: Boolean, data: Chunk[Byte]) extends HttpState
-case class AwaitBody(msg: HttpMessage, length: Int/*, curr: Int, q: Queue[Chunk[Byte]]*/) extends HttpState
-case class AwaitForm(msg: HttpMessage, separator: Chunk[Byte], next: FormData)
-case class MsgDone(msg: HttpMessage) extends HttpState
+enum HttpState:
+  case AwaitHeader(prev: Byte, prevrn: Boolean, data: Chunk[Byte])
+  case AwaitBody(msg: HttpMessage, length: Int/*, curr: Int, q: Queue[Chunk[Byte]]*/)
+  case AwaitForm(msg: HttpMessage, length: Int, boundary: String, next: Option[FormData])
+  case MsgDone(msg: HttpMessage)
 
-case class HttpMessage(line1: String, headers: Map[String, String], body: Chunk[Byte])
+case class HttpMessage(line1: String, headers: Map[String, String], body: Chunk[Byte], form: Seq[FormData])
 
 enum FormData:
   case File(name: String, tmp: String)
@@ -119,7 +121,7 @@ object BadReq
 
 def processChunk(chunk: Chunk[Byte], s: HttpState): IO[BadReq.type, HttpState] =
   s match
-    case state: AwaitHeader =>
+    case state: HttpState.AwaitHeader =>
       var prev = state.prev
       var prevrn = state.prevrn
       var found = false
@@ -133,21 +135,21 @@ def processChunk(chunk: Chunk[Byte], s: HttpState): IO[BadReq.type, HttpState] =
         prev = b
         found
       }, 0) match
-        case -1  => IO.succeed(AwaitHeader(prev, prevrn, state.data ++ chunk))
+        case -1  => IO.succeed(HttpState.AwaitHeader(prev, prevrn, state.data ++ chunk))
         case pos => parseHeader(pos + state.data.length, state.data ++ chunk)
     
-    case state: AwaitBody =>
+    case state: HttpState.AwaitBody =>
       val msg = state.msg.copy(body = state.msg.body ++ chunk)
       if msg.body.length >= state.length then
-        IO.succeed(MsgDone(msg))
+        IO.succeed(HttpState.MsgDone(msg))
       else
         IO.succeed(state.copy(msg = msg))
       // state.q.offer(chunk) *> IO.when(newState.curr >= newState.len)(state.q.shutdown) *> ZIO.succeed(newState)
 
-    case state: AwaitForm =>
+    case state: HttpState.AwaitForm =>
       ???
 
-    case _: MsgDone =>
+    case _: HttpState.MsgDone =>
       processChunk(chunk, HttpState())
 
 def parseHeader(pos: Int, chunk: Chunk[Byte]): IO[BadReq.type, HttpState] =
@@ -159,13 +161,30 @@ def parseHeader(pos: Int, chunk: Chunk[Byte]): IO[BadReq.type, HttpState] =
     // queue    <- Queue.bounded[Chunk[Byte]](100)
     // _        <- queue.offer(body)
     // stream   <- IO.succeed(Stream.fromQueueWithShutdown(queue))
-    msg <- IO.succeed(HttpMessage(line1, headers, body))
-    len <- headers.get("Content-Length").map(l => IO.fromOption(l.toIntOption).orElseFail(BadReq)).getOrElse(IO.succeed(0))
+    msg <- IO.succeed(HttpMessage(line1, headers, body, Nil))
+    len <- headers.get("Content-Length").map(h => IO.fromOption(h.toIntOption).orElseFail(BadReq)).getOrElse(IO.succeed(0))
+    boundary <-
+      IO.effectTotal(
+        headers.get("Content-Type").flatMap(_.split("multipart/form-data; boundary=").nn.toList.map(_.nn) match
+          case List("", boundary) => Some(boundary)
+          case _ => None
+        )
+      )
   yield
     if msg.body.length >= len then
-      MsgDone(msg)
+      boundary match
+        case Some(boundary) =>
+          //todo: lookup in msg.body for parts
+          HttpState.MsgDone(msg.copy(form = ???))
+        case None =>
+          HttpState.MsgDone(msg)
     else
-      AwaitBody(msg, len)
+      boundary match
+        case Some(boundary) =>
+          //todo: lookup in msg.body for parts
+          HttpState.AwaitForm(msg, len, boundary, None)
+        case None =>
+          HttpState.AwaitBody(msg, len)
 
 def toReq(msg: HttpMessage): IO[BadReq.type, Request] =
   msg.line1.split(' ').toVector match
