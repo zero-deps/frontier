@@ -126,11 +126,10 @@ def message(opcode: Int, payload: Chunk[Byte]): Task[ByteBuffer] = {
 val guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
 case class UpgradeRequest(req: Request, key: String)
-object UpgradeRequest {
-  def unapply(req: Request): Option[UpgradeRequest] = {
-      req.headers.get("Sec-WebSocket-Key").map(UpgradeRequest(req, _))
-  }
-}
+
+object UpgradeRequest:
+  def unapply(req: Request): Option[UpgradeRequest] =
+    req.headers.get("Sec-WebSocket-Key").map(UpgradeRequest(req, _))
 
 def upgrade(req: UpgradeRequest): UIO[Response] = upgrade(req.key)
 
