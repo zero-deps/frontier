@@ -34,10 +34,10 @@ def processHttp[R <: Has[?]](ch: SocketChannel, h: HttpHandler[R])(protocol: Pro
                 Protocol.ws(
                   WsContextData(
                     req
-                  , msg => for {
+                  , msg => for
                       bb <- write(msg).orDie
                       _ <- ch.write(bb).orDie
-                    } yield unit
+                    yield unit
                   , ch.close
                   , java.util.UUID.randomUUID().toString
                   ),
@@ -53,7 +53,7 @@ def processHttp[R <: Has[?]](ch: SocketChannel, h: HttpHandler[R])(protocol: Pro
   }.catchAll{
     case BadReq => IO.succeed((Protocol.http, Some(Response.empty(400, Nil))))
     case e: Throwable => IO.fail(e)
-  }.tap{ 
+  }.tap{
     case (p, Some(Response(code@ 101, headers, None))) =>
       ch.write(buildRe(code, headers))
     

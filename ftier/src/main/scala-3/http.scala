@@ -9,17 +9,25 @@ enum Body derives CanEqual:
   case FormData(files: Seq[(String, String)], params: Seq[(String, String)])
   case Empty
 
+case class Host(name: String, port: Option[String]=None)
+
 case class Request
   ( method: String
   , url: String
   , headers: Map[String, String]
   , body: Body
   ):
-  lazy val path: String = url.split('?').head
-  lazy val query: String = url.split('?').lift(1).getOrElse("")
+  private lazy val url1 = url.split('?')
+  lazy val path: String = url1.head
+  lazy val query: String = url1.lift(1).getOrElse("")
   
-  lazy val getServerName: String = headers.getOrElse("Host", "").split(':').head
-  def getHeader(x: String): Option[String] = headers.get(x)
+  lazy val Host: Host =
+    headers.getOrElse("Host", "").split(':').toList match
+      case name :: Nil => http.Host(name)
+      case name :: port :: Nil => http.Host(name, Some(port))
+      case _ => http.Host("")
+  lazy val Origin = headers.get("Origin")
+  lazy val `If-None-Match` = headers.get("If-None-Match")
   
   def paramValues(x: String): List[String] = params.collect{ case (`x`, v) => decode(v) }
   def param(x: String): Option[String] = params.collectFirst{ case (`x`, v) => v }
@@ -107,9 +115,6 @@ enum FormData:
   case File(name: String, tmp: String)
   case Param(name: String, value: String)
 
-//Transfer-Encoding: chunked
-//multipart/*
-
 object BadReq
 
 def processChunk(chunk: Chunk[Byte], s: HttpState): IO[BadReq.type, HttpState] =
@@ -118,56 +123,54 @@ def processChunk(chunk: Chunk[Byte], s: HttpState): IO[BadReq.type, HttpState] =
       var prev = state.prev
       var prevrn = state.prevrn
       var found = false
-      chunk.indexWhere( b => {
-          val bInt = b.toInt //fix: comparing Byte with Int
-          if (bInt != 13 && bInt != 10) prevrn = false //fix: comparing Byte with Int
-          if (bInt == 10 && prev.toInt == 13) { //fix: comparing Byte with Int
-              if (prevrn) found = true
-              prevrn = true
-          }
-          prev = b
-          found
-      }, 0) match {
-          case -1  => ZIO.succeed(AwaitHeader(prev, prevrn, state.data ++ chunk))
-          case pos => parseHeader(pos + state.data.length, state.data ++ chunk)
-      }
+      chunk.indexWhere(b => {
+        if b != 13 && b != 10 then
+          prevrn = false
+        if b == 10 && prev == 13 then
+          if prevrn then
+            found = true
+          prevrn = true
+        prev = b
+        found
+      }, 0) match
+        case -1  => IO.succeed(AwaitHeader(prev, prevrn, state.data ++ chunk))
+        case pos => parseHeader(pos + state.data.length, state.data ++ chunk)
     
     case state: AwaitBody =>
       val msg = state.msg.copy(body = state.msg.body ++ chunk)
-      if (msg.body.length >= state.length) {
-          ZIO.succeed(MsgDone(msg))
-      } else {
-          ZIO.succeed(state.copy(msg = msg))
-      }
+      if msg.body.length >= state.length then
+        IO.succeed(MsgDone(msg))
+      else
+        IO.succeed(state.copy(msg = msg))
       // state.q.offer(chunk) *> IO.when(newState.curr >= newState.len)(state.q.shutdown) *> ZIO.succeed(newState)
-    
+
+    case state: AwaitForm =>
+      ???
+
     case _: MsgDone =>
       processChunk(chunk, HttpState())
 
 def parseHeader(pos: Int, chunk: Chunk[Byte]): IO[BadReq.type, HttpState] =
   for
-    split    <- IO.succeed(chunk.splitAt(pos + 1))
-    (header, body) = split
-    lines    <- IO.succeed(String(header.toArray).split("\r\n").nn.toVector)
-    headers  <- IO.succeed(lines.drop(1).map(h => h.nn.split(": ").nn).collect{ case Array(h, k) => (h.nn, k.nn) }.to(Map))
-    line1    <- IO.succeed(lines.headOption.getOrElse("").nn)
+    (header, body) <- IO.succeed(chunk.splitAt(pos + 1))
+    lines <- IO.succeed(String(header.toArray).split("\r\n").nn.toVector)
+    headers <- IO.succeed(lines.drop(1).map(_.nn.split(": ").nn).collect{ case Array(h, k) => (h.nn, k.nn) }.toMap)
+    line1 <- IO.succeed(lines.headOption.getOrElse("").nn)
     // queue    <- Queue.bounded[Chunk[Byte]](100)
     // _        <- queue.offer(body)
     // stream   <- IO.succeed(Stream.fromQueueWithShutdown(queue))
-    msg      <- IO.succeed(HttpMessage(line1, headers, body))
-    len      <- headers.get("Content-Length").map(l => IO.fromOption(l.toIntOption).orElseFail(BadReq)).getOrElse(IO.succeed(0))
+    msg <- IO.succeed(HttpMessage(line1, headers, body))
+    len <- headers.get("Content-Length").map(l => IO.fromOption(l.toIntOption).orElseFail(BadReq)).getOrElse(IO.succeed(0))
   yield
     if msg.body.length >= len then
       MsgDone(msg)
     else
       AwaitBody(msg, len)
 
-def toReq(msg: HttpMessage): IO[BadReq.type, Request] = {
-  msg.line1.split(' ').toVector match {
+def toReq(msg: HttpMessage): IO[BadReq.type, Request] =
+  msg.line1.split(' ').toVector match
     case method +: url +: _ => IO.succeed(Request(method, url, msg.headers, Body.Chunked(msg.body)))
     case _ => IO.fail(BadReq)
-  }
-}
 
 // def toResp(msg: HttpMessage): IO[BadReq.type, Response] = {
 //   msg.line1.split(' ').toVector match {
