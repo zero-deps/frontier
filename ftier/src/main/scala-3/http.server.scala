@@ -51,7 +51,7 @@ def processHttp[R <: Has[?]](ch: SocketChannel, h: HttpHandler[R])(protocol: Pro
     case s => 
       IO.succeed((protocol.copy(state=s), None))
   }.catchAll{
-    case BadReq => IO.succeed((Protocol.http, Some(Response.empty(400, Nil))))
+    case BadReq => IO.succeed((Protocol.http, Some(Response.empty(400))))
     case e: Throwable => IO.fail(e)
   }.tap{
     case (p, Some(Response(code@ 101, headers, None))) =>
@@ -59,8 +59,11 @@ def processHttp[R <: Has[?]](ch: SocketChannel, h: HttpHandler[R])(protocol: Pro
     
     case (p, Some(Response(code, headers, None))) =>
       ch.write(buildRe(code, headers)) *> ch.close
+
+    case (p, Some(Response(code, headers, body: Chunk[Byte]))) =>
+      ch.write(buildRe(code, headers)) *> ch.write(body) *> ch.close
     
-    case (p, Some(Response(code, headers, Some((body, onError, onSuccess))))) =>
+    case (p, Some(Response(code, headers, ZStreamOn(body, onError, onSuccess)))) =>
       for
         _ <- ch.write(buildRe(code, headers :+ ("Transfer-Encoding" -> "chunked")))
         _ <-

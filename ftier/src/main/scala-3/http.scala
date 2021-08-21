@@ -6,18 +6,13 @@ import java.io.IOException
 
 import ext.given
 
-enum Body derives CanEqual:
-  case Chunked(c: Chunk[Byte])
-  case FormData(files: Seq[(String, String)], params: Seq[(String, String)])
-  case Empty
-
 case class Host(name: String, port: Option[String]=None)
 
 case class Request
   ( method: String
   , url: String
   , headers: Map[String, String]
-  , body: Body
+  , body: Chunk[Byte] | Seq[FormData] | None.type
   ):
   private lazy val url1 = url.split('?')
   lazy val path: String = url1.head
@@ -38,15 +33,13 @@ case class Request
   
   lazy val bodyAsString: String =
     body match
-      case Body.Chunked(c) => String(c.toArray, "utf8")
-      case _: Body.FormData => ""
-      case Body.Empty => ""
+      case c: Chunk[Byte] => String(c.toArray, "utf8")
+      case _ => ""
   
   lazy val bodyAsBytes: Array[Byte] =
     body match
-      case Body.Chunked(c) => c.toArray
-      case _: Body.FormData => Array.emptyByteArray
-      case Body.Empty => Array.emptyByteArray
+      case c: Chunk[Byte] => c.toArray
+      case _ => Array.emptyByteArray
 
   lazy val form: List[(String, String)] = bodyAsString.split('&').filter(_.nonEmpty).map(_.split('=').nn).map(x => x.lift(0).getOrElse("") -> x.lift(1).map(decode).getOrElse("")).toList
   
@@ -71,7 +64,7 @@ end Request
 
 object Request:
   def apply(method: String, url: String, headers: Map[String, String], body: String): Request =
-    new Request(method=method, url=url, headers=headers, body=Body.Chunked(Chunk.fromArray(body.getBytes("utf8").nn)))
+    new Request(method=method, url=url, headers=headers, body=Chunk.fromArray(body.getBytes("utf8").nn))
 
 object Get:
   def unapply(r: Request): Option[String] =
@@ -84,23 +77,16 @@ object Post:
 case class Response
   ( code: Int
   , headers: Seq[(String, String)]
-  , body: Option[(ZStream[Blocking, Throwable, Byte], OnError, onSuccess)]
+  , body: None.type | Chunk[Byte] | ZStreamOn[Blocking, Throwable, Byte]
   )
 
 object Response:
-  def empty(code: Int, headers: Seq[(String, String)]): Response =
-    new Response(code, headers, None)
-  def apply(code: Int, headers: Seq[(String, String)], body: Array[Byte]): Response =
-    new Response(code, headers, Some(Stream.fromChunk(Chunk.fromArray(body)), _ => UIO.unit, _ => UIO.unit))
-  def apply(code: Int, headers: Seq[(String, String)], body: Chunk[Byte]): Response =
-    new Response(code, headers, Some(Stream.fromChunk(body), _ => UIO.unit, _ => UIO.unit))
-  def apply(code: Int, headers: Seq[(String, String)], body: ZStream[Blocking, Throwable, Byte]): Response =
-    new Response(code, headers, Some(body, _ => UIO.unit, _ => UIO.unit))
-  def apply(code: Int, headers: Seq[(String, String)], body: ZStream[Blocking, Throwable, Byte], onError: OnError, onSuccess: onSuccess): Response =
-    new Response(code, headers, Some((body, onError, onSuccess)))
+  def empty(code: Int): Response = new Response(code, Nil, None)
 
-type OnError = Throwable => UIO[Unit]
-type onSuccess = Unit => UIO[Unit]
+case class ZStreamOn[R, E, O](stream: ZStream[R, E, O], onError: E => ZIO[R, E, Any], onSuccess: Unit => ZIO[R, E, Any])
+
+object ZStreamOn:
+  def from[R, E, O](x: ZStream[R, E, O]): ZStreamOn[R, E, O] = new ZStreamOn(x, (_: E) => UIO.unit, (_: Unit) => UIO.unit)
 
 object HttpState:
   def apply(): HttpState = AwaitHeader(0, false, Chunk.empty) 
@@ -188,7 +174,7 @@ def parseHeader(pos: Int, chunk: Chunk[Byte]): IO[BadReq.type, HttpState] =
 
 def toReq(msg: HttpMessage): IO[BadReq.type, Request] =
   msg.line1.split(' ').toVector match
-    case method +: url +: _ => IO.succeed(Request(method, url, msg.headers, Body.Chunked(msg.body)))
+    case method +: url +: _ => IO.succeed(Request(method, url, msg.headers, msg.body))
     case _ => IO.fail(BadReq)
 
 // def toResp(msg: HttpMessage): IO[BadReq.type, Response] = {
