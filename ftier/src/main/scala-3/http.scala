@@ -78,7 +78,11 @@ case class Response
   ( code: Int
   , headers: Seq[(String, String)]
   , body: None.type | Chunk[Byte] | ZStreamOn[Blocking, Throwable, Byte]
-  )
+  ):
+  lazy val bodyAsBytes: Array[Byte] =
+    body match
+      case c: Chunk[Byte] => c.toArray
+      case _ => Array.emptyByteArray
 
 object Response:
   def empty(code: Int): Response = new Response(code, Nil, None)
