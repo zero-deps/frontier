@@ -15,7 +15,7 @@ def newid: UIO[Array[Byte]] =
     r <- IO.effectTotal(xs.hex)
   yield r
 
-def newid_utf8 =
+def newid_utf8: UIO[String] =
   for
     x <- newid
     r <- IO.effectTotal(x.utf8)
