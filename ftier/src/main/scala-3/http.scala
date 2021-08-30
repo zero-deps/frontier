@@ -1,18 +1,25 @@
 package ftier
 package http
 
-import zio.*, stream.*, blocking.*
 import java.io.IOException
+import scala.util.chaining.*
+import scala.annotation.tailrec
+import zio.*, stream.*, blocking.*
 
 import ext.given
 
 case class Host(name: String, port: Option[String]=None)
 
+enum Body:
+  case Bytes(x: Chunk[Byte])
+  case Form(x: Seq[FormData])
+  case None
+
 case class Request
   ( method: String
   , url: String
   , headers: Map[String, String]
-  , body: Chunk[Byte] | Seq[FormData] | None.type
+  , body: Body
   ):
   private lazy val url1 = url.split('?')
   lazy val path: String = url1.head
@@ -33,15 +40,21 @@ case class Request
   
   lazy val bodyAsString: String =
     body match
-      case c: Chunk[Byte] => String(c.toArray, "utf8")
+      case Body.Bytes(c) => String(c.toArray, "utf8")
       case _ => ""
   
   lazy val bodyAsBytes: Array[Byte] =
     body match
-      case c: Chunk[Byte] => c.toArray
+      case Body.Bytes(c) => c.toArray
       case _ => Array.emptyByteArray
 
-  lazy val form: List[(String, String)] = bodyAsString.split('&').filter(_.nonEmpty).map(_.split('=').nn).map(x => x.lift(0).getOrElse("") -> x.lift(1).map(decode).getOrElse("")).toList
+  lazy val form: List[(String, String)] =
+    bodyAsString.split('&').filter(_.nonEmpty).map(_.split('=').nn).map(x => x.lift(0).getOrElse("") -> x.lift(1).map(decode).getOrElse("")).toList
+
+  lazy val formData: Seq[FormData] =
+    body match
+      case Body.Form(xs: Seq[FormData]) => xs
+      case _ => Nil
   
   private def decode(x: String): String = java.net.URLDecoder.decode(x, "utf8").nn
   
@@ -64,7 +77,7 @@ end Request
 
 object Request:
   def apply(method: String, url: String, headers: Map[String, String], body: String): Request =
-    new Request(method=method, url=url, headers=headers, body=Chunk.fromArray(body.getBytes("utf8").nn))
+    new Request(method=method, url=url, headers=headers, body=Body.Bytes(Chunk.fromArray(body.getBytes("utf8").nn)))
 
 object Get:
   def unapply(r: Request): Option[String] =
@@ -98,14 +111,10 @@ object HttpState:
 enum HttpState:
   case AwaitHeader(prev: Byte, prevrn: Boolean, data: Chunk[Byte])
   case AwaitBody(msg: HttpMessage, length: Int/*, curr: Int, q: Queue[Chunk[Byte]]*/)
-  case AwaitForm(msg: HttpMessage, length: Int, boundary: String, next: Option[FormData])
+  case AwaitForm(msg: HttpMessage, bound: String, curr: Option[FormData])
   case MsgDone(msg: HttpMessage)
 
 case class HttpMessage(line1: String, headers: Map[String, String], body: Chunk[Byte], form: Seq[FormData])
-
-enum FormData:
-  case File(name: String, tmp: String)
-  case Param(name: String, value: String)
 
 object BadReq
 
@@ -137,7 +146,7 @@ def processChunk(chunk: Chunk[Byte], s: HttpState): IO[BadReq.type, HttpState] =
       // state.q.offer(chunk) *> IO.when(newState.curr >= newState.len)(state.q.shutdown) *> ZIO.succeed(newState)
 
     case state: HttpState.AwaitForm =>
-      ???
+      awaitForm(state, chunk)
 
     case _: HttpState.MsgDone =>
       processChunk(chunk, HttpState())
@@ -153,32 +162,33 @@ def parseHeader(pos: Int, chunk: Chunk[Byte]): IO[BadReq.type, HttpState] =
     // stream   <- IO.succeed(Stream.fromQueueWithShutdown(queue))
     msg <- IO.succeed(HttpMessage(line1, headers, body, Nil))
     len <- headers.get("Content-Length").map(h => IO.fromOption(h.toIntOption).orElseFail(BadReq)).getOrElse(IO.succeed(0))
-    boundary <-
+    bound <-
       IO.effectTotal(
-        headers.get("Content-Type").flatMap(_.split("multipart/form-data; boundary=").nn.toList.map(_.nn) match
-          case List("", boundary) => Some(boundary)
+        headers.get("Content-Type").flatMap(_.split("multipart/form-data; boundary=") match
+          case Array("", b) => Some(b.nn)
           case _ => None
         )
       )
-  yield
-    if msg.body.length >= len then
-      boundary match
-        case Some(boundary) =>
-          //todo: lookup in msg.body for parts
-          HttpState.MsgDone(msg.copy(form = ???))
-        case None =>
-          HttpState.MsgDone(msg)
-    else
-      boundary match
-        case Some(boundary) =>
-          //todo: lookup in msg.body for parts
-          HttpState.AwaitForm(msg, len, boundary, None)
-        case None =>
-          HttpState.AwaitBody(msg, len)
+    s <-
+      if msg.body.length >= len then
+        bound match
+          case Some(bound) =>
+            awaitForm(HttpState.AwaitForm(msg, bound, None), Chunk.empty).collect(BadReq){
+              case s: HttpState.MsgDone => s
+            }
+          case None =>
+            IO.succeed(HttpState.MsgDone(msg))
+      else
+        bound match
+          case Some(bound) =>
+            IO.succeed(HttpState.AwaitForm(msg, bound, None))
+          case None =>
+            IO.succeed(HttpState.AwaitBody(msg, len))
+  yield s
 
 def toReq(msg: HttpMessage): IO[BadReq.type, Request] =
   msg.line1.split(' ').toVector match
-    case method +: url +: _ => IO.succeed(Request(method, url, msg.headers, msg.body))
+    case method +: url +: _ => IO.succeed(Request(method, url, msg.headers, Body.Bytes(msg.body)))
     case _ => IO.fail(BadReq)
 
 // def toResp(msg: HttpMessage): IO[BadReq.type, Response] = {
