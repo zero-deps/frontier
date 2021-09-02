@@ -118,7 +118,7 @@ case class HttpMessage(line1: String, headers: Map[String, String], body: Chunk[
 
 object BadReq
 
-def processChunk(chunk: Chunk[Byte], s: HttpState): IO[BadReq.type, HttpState] =
+def processChunk(chunk: Chunk[Byte], s: HttpState): ZIO[Blocking, BadReq.type | Exception, HttpState] =
   s match
     case state: HttpState.AwaitHeader =>
       var prev = state.prev
@@ -151,7 +151,7 @@ def processChunk(chunk: Chunk[Byte], s: HttpState): IO[BadReq.type, HttpState] =
     case _: HttpState.MsgDone =>
       processChunk(chunk, HttpState())
 
-def parseHeader(pos: Int, chunk: Chunk[Byte]): IO[BadReq.type, HttpState] =
+def parseHeader(pos: Int, chunk: Chunk[Byte]): ZIO[Blocking, BadReq.type | Exception, HttpState] =
   for
     (header, body) <- IO.succeed(chunk.splitAt(pos + 1))
     lines <- IO.succeed(String(header.toArray).split("\r\n").nn.toVector)
@@ -170,7 +170,7 @@ def parseHeader(pos: Int, chunk: Chunk[Byte]): IO[BadReq.type, HttpState] =
         )
       )
     s <-
-      if msg.body.length >= len then
+      (if msg.body.length >= len then
         bound match
           case Some(bound) =>
             awaitForm(HttpState.AwaitForm(msg, bound, None), Chunk.empty).collect(BadReq){
@@ -183,7 +183,7 @@ def parseHeader(pos: Int, chunk: Chunk[Byte]): IO[BadReq.type, HttpState] =
           case Some(bound) =>
             IO.succeed(HttpState.AwaitForm(msg, bound, None))
           case None =>
-            IO.succeed(HttpState.AwaitBody(msg, len))
+            IO.succeed(HttpState.AwaitBody(msg, len))): ZIO[Blocking, BadReq.type | Exception, HttpState]
   yield s
 
 def toReq(msg: HttpMessage): IO[BadReq.type, Request] =

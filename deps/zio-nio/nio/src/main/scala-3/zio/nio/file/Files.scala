@@ -1,6 +1,6 @@
 package zio.nio.file
 
-import java.io.IOException
+import java.io.{ IOException, InputStream }
 import java.nio.charset.{ Charset, StandardCharsets }
 import java.nio.file.attribute.*
 import java.nio.file.{
@@ -67,11 +67,11 @@ object Files {
       .refineToOrDie[Exception]
 
   def createTempFile(
-    suffix: String = ".tmp",
-    prefix: Option[String],
-    fileAttributes: Iterable[FileAttribute[?]]
+    prefix: String,
+    suffix: Option[String] = None,
+    fileAttributes: FileAttribute[?]*
   ): ZIO[Blocking, Exception, Path] =
-    effectBlocking(Path.fromJava(JFiles.createTempFile(prefix.orNull, suffix, fileAttributes.toSeq *)))
+    effectBlocking(Path.fromJava(JFiles.createTempFile(prefix, suffix.orNull, fileAttributes*)))
       .refineToOrDie[Exception]
 
   def createTempDirectory(
@@ -319,6 +319,9 @@ object Files {
       .flatMap(fromJavaIterator)
       .map(Path.fromJava)
   }
+
+  def getAndDelete(p: Path): ZManaged[Blocking, Throwable, InputStream] =
+    zio.stream.ZStream.fromFile(p.javaPath).toInputStream <* ZManaged.fromEffect(delete(p))
 
 //
 //  def copy(in: ZStream[Blocking, Exception, Chunk[Byte]], target: Path, options: CopyOption*): ZIO[Blocking, Exception, Long] = {

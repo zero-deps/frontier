@@ -5,14 +5,16 @@ import java.io.IOException
 import scala.util.chaining.*
 import scala.annotation.tailrec
 import zio.*, stream.*, blocking.*
+import zio.nio.file.Files
+import zio.nio.core.file.Path
 
 import ext.given
 
 enum FormData:
-  case File(name: String, value: Chunk[Byte]) //todo: write to tmp file
+  case File(name: String, path: Path)
   case Param(name: String, value: Chunk[Byte])
 
-def awaitForm(state: HttpState.AwaitForm, chunk: Chunk[Byte]): IO[BadReq.type, HttpState] =
+def awaitForm(state: HttpState.AwaitForm, chunk: Chunk[Byte]): ZIO[Blocking, BadReq.type | Exception, HttpState] =
   val body = state.msg.body
   val form = state.msg.form
   val bound = state.bound
@@ -25,29 +27,33 @@ def awaitForm(state: HttpState.AwaitForm, chunk: Chunk[Byte]): IO[BadReq.type, H
     `--bound` <- IO.effectTotal(Chunk.fromArray(s"--$bound".getBytes.nn))
     `--bound--` <- IO.effectTotal(Chunk.fromArray(s"--$bound--".getBytes.nn))
     s <-
-      curr match
+      ((curr match
         case None =>
           whenNoCurr(ls, lastChunk, `--bound`, `--bound--`, rn, state)
         case Some(curr) =>
           ls.length match
             case 0 =>
-              val field: FormData = appendField(curr, lastChunk)
-              IO.succeed(state.copy(msg = state.msg.copy(body = Chunk.empty), curr = Some(field)))
+              for
+                field <- appendField(curr, lastChunk)
+              yield state.copy(msg = state.msg.copy(body = Chunk.empty), curr = Some(field))
             case 1 =>
-              val field: FormData = appendField(curr, ls.head)
-              if lastChunk == `--bound--` then
-                IO.succeed(HttpState.MsgDone(state.msg.copy(body = Chunk.empty, form = state.msg.form :+ field)))
-              else
-                IO.succeed(state.copy(msg = state.msg.copy(body = lastChunk, form = state.msg.form :+ field), curr = None))
+              for
+                field <- appendField(curr, ls.head)
+              yield
+                if lastChunk == `--bound--` then
+                  HttpState.MsgDone(state.msg.copy(body = Chunk.empty, form = state.msg.form :+ field))
+                else
+                  state.copy(msg = state.msg.copy(body = lastChunk, form = state.msg.form :+ field), curr = None)
             case _ =>
-              val (head, tail) = ls.splitAt(1)
-              val field: FormData = appendField(curr, head.head)
-              val s: HttpState.AwaitForm = state.copy(msg = state.msg.copy(body = Chunk.empty, form = state.msg.form :+ field), curr = None)
-              whenNoCurr(tail, lastChunk, `--bound`, `--bound--`, rn, s)
+              for
+                (head, tail) <- IO.succeed(ls.splitAt(1))
+                field <- appendField(curr, head.head)
+                (s: HttpState.AwaitForm) = state.copy(msg = state.msg.copy(body = Chunk.empty, form = state.msg.form :+ field), curr = None)
+                s1 <- whenNoCurr(tail, lastChunk, `--bound`, `--bound--`, rn, s)
+              yield s1): ZIO[Blocking, BadReq.type | Exception, HttpState])
   yield s
 
-@tailrec
-private def whenNoCurr(ls: Chunk[Chunk[Byte]], lastChunk: Chunk[Byte], `--bound`: Chunk[Byte], `--bound--`: Chunk[Byte], rn: Chunk[Byte], state: HttpState.AwaitForm): IO[BadReq.type, HttpState] =
+private def whenNoCurr(ls: Chunk[Chunk[Byte]], lastChunk: Chunk[Byte], `--bound`: Chunk[Byte], `--bound--`: Chunk[Byte], rn: Chunk[Byte], state: HttpState.AwaitForm): ZIO[Blocking, BadReq.type | Exception, HttpState] =
   ls.headOption match
     case None =>
       if lastChunk == `--bound--` then
@@ -80,30 +86,40 @@ private def whenNoCurr(ls: Chunk[Chunk[Byte]], lastChunk: Chunk[Byte], `--bound`
                     others.length match
                       case 0 =>
                         // no data in ls, lastChunk contains part of data (curr is not finished)
-                        val field = writeField(name, isFile, lastChunk)
-                        IO.succeed(state.copy(msg = state.msg.copy(body = Chunk.empty), curr = Some(field)))
+                        for
+                          field <- writeField(name, isFile, lastChunk)
+                        yield state.copy(msg = state.msg.copy(body = Chunk.empty), curr = Some(field))
                       case 1 =>
                         // all data is here
-                        val field = writeField(name, isFile, others.head)
-                        if lastChunk == `--bound--` then
-                          IO.succeed(HttpState.MsgDone(state.msg.copy(body = Chunk.empty, form = state.msg.form :+ field)))
-                        else
-                          IO.succeed(state.copy(msg = state.msg.copy(body = lastChunk, form = state.msg.form :+ field)))
+                        for
+                          field <- writeField(name, isFile, others.head)
+                        yield
+                          if lastChunk == `--bound--` then
+                            HttpState.MsgDone(state.msg.copy(body = Chunk.empty, form = state.msg.form :+ field))
+                          else
+                            state.copy(msg = state.msg.copy(body = lastChunk, form = state.msg.form :+ field))
                       case _ =>
-                        val (head, tail) = others.splitAt(1)
-                        val field = writeField(name, isFile, head.head)
-                        val s: HttpState.AwaitForm = state.copy(msg = state.msg.copy(body = Chunk.empty, form = state.msg.form :+ field))
-                        whenNoCurr(tail, lastChunk, `--bound`, `--bound--`, rn, s)
+                        for
+                          (head, tail) <- IO.succeed(others.splitAt(1))
+                          field <- writeField(name, isFile, head.head)
+                          (s: HttpState.AwaitForm) = state.copy(msg = state.msg.copy(body = Chunk.empty, form = state.msg.form :+ field))
+                          s1 <- whenNoCurr(tail, lastChunk, `--bound`, `--bound--`, rn, s)
+                        yield s1
 
-private def writeField(name: String, isFile: Boolean, value: Chunk[Byte]): FormData =
+private def writeField(name: String, isFile: Boolean, value: Chunk[Byte]): ZIO[Blocking, Exception, FormData] =
   if isFile then
-    FormData.File(name, value) //todo
+    for
+      uuid <- IO.effectTotal(java.util.UUID.randomUUID.toString)
+      path <- Files.createTempFile(uuid)
+      _ <- IO.effectTotal(path.toFile.deleteOnExit)
+      _ <- Files.writeBytes(path, value)
+    yield FormData.File(name, path)
   else
-    FormData.Param(name, value)
+    IO.succeed(FormData.Param(name, value))
 
-private def appendField(field: FormData, value: Chunk[Byte]): FormData =
+private def appendField(field: FormData, value: Chunk[Byte]): ZIO[Blocking, Exception, FormData] =
   field match
     case x: FormData.File =>
-      x.copy(value = x.value ++ value) //todo
+      Files.writeBytes(x.path, value).map(_ => x)
     case x: FormData.Param =>
-      x.copy(value = x.value ++ value)
+      IO.succeed(x.copy(value = x.value ++ value))
