@@ -10,16 +10,11 @@ import ext.given
 
 case class Host(name: String, port: Option[String]=None)
 
-enum Body:
-  case Bytes(x: Chunk[Byte])
-  case Form(x: Seq[FormData])
-  case None
-
 case class Request
   ( method: String
   , url: String
   , headers: Map[String, String]
-  , body: Body
+  , body: BodyChunk | BodyForm
   ):
   private lazy val url1 = url.split('?')
   lazy val path: String = url1.head
@@ -40,12 +35,12 @@ case class Request
   
   lazy val bodyAsString: String =
     body match
-      case Body.Bytes(c) => String(c.toArray, "utf8")
+      case BodyChunk(c) => String(c.toArray, "utf8")
       case _ => ""
   
   lazy val bodyAsBytes: Array[Byte] =
     body match
-      case Body.Bytes(c) => c.toArray
+      case BodyChunk(c) => c.toArray
       case _ => Array.emptyByteArray
 
   lazy val form: List[(String, String)] =
@@ -53,7 +48,7 @@ case class Request
 
   lazy val formData: Seq[FormData] =
     body match
-      case Body.Form(xs: Seq[FormData]) => xs
+      case BodyForm(xs: Seq[FormData]) => xs
       case _ => Nil
   
   private def decode(x: String): String = java.net.URLDecoder.decode(x, "utf8").nn
@@ -77,7 +72,7 @@ end Request
 
 object Request:
   def apply(method: String, url: String, headers: Map[String, String], body: String): Request =
-    new Request(method=method, url=url, headers=headers, body=Body.Bytes(Chunk.fromArray(body.getBytes("utf8").nn)))
+    new Request(method=method, url=url, headers=headers, body=BodyChunk(Chunk.fromArray(body.getBytes("utf8").nn)))
 
 object Get:
   def unapply(r: Request): Option[String] =
@@ -90,31 +85,26 @@ object Post:
 case class Response
   ( code: Int
   , headers: Seq[(String, String)]
-  , body: None.type | Chunk[Byte] | ZStreamOn[Blocking, Throwable, Byte]
+  , body: BodyChunk | BodyStream
   ):
   lazy val bodyAsBytes: Array[Byte] =
     body match
-      case c: Chunk[Byte] => c.toArray
+      case BodyChunk(c) => c.toArray
       case _ => Array.emptyByteArray
 
 object Response:
-  def empty(code: Int): Response = new Response(code, Nil, None)
-
-case class ZStreamOn[R, E, O](stream: ZStream[R, E, O], onError: E => ZIO[R, E, Any], onSuccess: Unit => ZIO[R, E, Any])
-
-object ZStreamOn:
-  def from[R, E, O](x: ZStream[R, E, O]): ZStreamOn[R, E, O] = new ZStreamOn(x, (_: E) => UIO.unit, (_: Unit) => UIO.unit)
+  def empty(code: Int): Response = new Response(code, Nil, BodyChunk(Chunk.empty))
 
 object HttpState:
   def apply(): HttpState = AwaitHeader(0, false, Chunk.empty) 
 
 enum HttpState:
   case AwaitHeader(prev: Byte, prevrn: Boolean, data: Chunk[Byte])
-  case AwaitBody(msg: HttpMessage, length: Int/*, curr: Int, q: Queue[Chunk[Byte]]*/)
-  case AwaitForm(msg: HttpMessage, bound: String, curr: Option[FormData])
-  case MsgDone(msg: HttpMessage)
+  case AwaitBody(meta: MetaData, body: Chunk[Byte], length: Int/*, curr: Int, q: Queue[Chunk[Byte]]*/)
+  case AwaitForm(meta: MetaData, body: Chunk[Byte], form: Seq[FormData], bound: String, curr: Option[FormData])
+  case MsgDone(meta: MetaData, body: BodyChunk | BodyForm)
 
-case class HttpMessage(line1: String, headers: Map[String, String], body: Chunk[Byte], form: Seq[FormData])
+case class MetaData(method: String, url: String, headers: Map[String, String])
 
 object BadReq
 
@@ -138,11 +128,11 @@ def processChunk(chunk: Chunk[Byte], s: HttpState): ZIO[Blocking, BadReq.type | 
         case pos => parseHeader(pos + state.data.length, state.data ++ chunk)
     
     case state: HttpState.AwaitBody =>
-      val msg = state.msg.copy(body = state.msg.body ++ chunk)
-      if msg.body.length >= state.length then
-        IO.succeed(HttpState.MsgDone(msg))
+      val body = state.body ++ chunk
+      if body.length >= state.length then
+        IO.succeed(HttpState.MsgDone(state.meta, BodyChunk(body)))
       else
-        IO.succeed(state.copy(msg = msg))
+        IO.succeed(state.copy(body = body))
       // state.q.offer(chunk) *> IO.when(newState.curr >= newState.len)(state.q.shutdown) *> ZIO.succeed(newState)
 
     case state: HttpState.AwaitForm =>
@@ -157,10 +147,13 @@ def parseHeader(pos: Int, chunk: Chunk[Byte]): ZIO[Blocking, BadReq.type | Excep
     lines <- IO.succeed(String(header.toArray).split("\r\n").nn.toVector)
     headers <- IO.succeed(lines.drop(1).map(_.nn.split(": ").nn).collect{ case Array(h, k) => (h.nn, k.nn) }.toMap)
     line1 <- IO.succeed(lines.headOption.getOrElse("").nn)
+    meta <-
+      line1.split(' ').toList match
+        case m :: u :: _ => IO.succeed(MetaData(method=m, url=u, headers))
+        case _ => IO.fail(BadReq)
     // queue    <- Queue.bounded[Chunk[Byte]](100)
     // _        <- queue.offer(body)
     // stream   <- IO.succeed(Stream.fromQueueWithShutdown(queue))
-    msg <- IO.succeed(HttpMessage(line1, headers, body, Nil))
     len <- headers.get("Content-Length").map(h => IO.fromOption(h.toIntOption).orElseFail(BadReq)).getOrElse(IO.succeed(0))
     bound <-
       IO.effectTotal(
@@ -170,34 +163,21 @@ def parseHeader(pos: Int, chunk: Chunk[Byte]): ZIO[Blocking, BadReq.type | Excep
         )
       )
     s <-
-      (if msg.body.length >= len then
+      (if body.length >= len then
         bound match
           case Some(bound) =>
-            awaitForm(HttpState.AwaitForm(msg, bound, None), Chunk.empty).collect(BadReq){
+            awaitForm(HttpState.AwaitForm(meta, body, Nil, bound, None), Chunk.empty).collect(BadReq){
               case s: HttpState.MsgDone => s
             }
           case None =>
-            IO.succeed(HttpState.MsgDone(msg))
+            IO.succeed(HttpState.MsgDone(meta, BodyChunk(body)))
       else
         bound match
           case Some(bound) =>
-            IO.succeed(HttpState.AwaitForm(msg, bound, None))
+            IO.succeed(HttpState.AwaitForm(meta, body, Nil, bound, None))
           case None =>
-            IO.succeed(HttpState.AwaitBody(msg, len))): ZIO[Blocking, BadReq.type | Exception, HttpState]
+            IO.succeed(HttpState.AwaitBody(meta, body, len))): ZIO[Blocking, BadReq.type | Exception, HttpState]
   yield s
-
-def toReq(msg: HttpMessage): IO[BadReq.type, Request] =
-  msg.line1.split(' ').toVector match
-    case method +: url +: _ => IO.succeed(Request(method, url, msg.headers, Body.Bytes(msg.body)))
-    case _ => IO.fail(BadReq)
-
-// def toResp(msg: HttpMessage): IO[BadReq.type, Response] = {
-//   msg.line1.split(' ').toVector match {
-//     case _ +: code +: _ =>
-//       IO.fromOption(code.toIntOption).orElseFail(BadReq).map(c => Response(c, msg.headers, msg.body))
-//     case _ => IO.fail(BadReq)
-//   }
-// }
 
 def buildRe(code: Int, headers: Seq[(String, String)]): Chunk[Byte] =
   Chunk.fromArray(Seq(

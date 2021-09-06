@@ -1,13 +1,12 @@
 lazy val ftier = project
   .in(file("ftier"))
   .settings(
-    scalaVersion := "3.0.2-RC1"
-  , crossScalaVersions := "3.0.2-RC1" :: "2.13.6" :: Nil
+    scalaVersion := "3.1.0-RC1"
+  , crossScalaVersions := "3.1.0-RC1" :: "2.13.6" :: Nil
   , libraryDependencies ++= Seq(
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.13.0-rc1"
-    , "dev.zio" %% "zio-test-sbt" % "1.0.9" % Test
+    , "dev.zio" %% "zio-test-sbt" % "1.0.10" % Test
     )
-  , resolvers += Resolver.sonatypeRepo("snapshots")
   , testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
   , scalacOptions += "-language:postfixOps"
   , scalacOptions ++= {
@@ -16,6 +15,7 @@ lazy val ftier = project
         case _ => Seq(
           "-source:future"
         , "-language:strictEquality"
+        , "-language:fewerBraces"
         , "-Yexplicit-nulls"
         , "release", "11"
         )
@@ -30,11 +30,11 @@ lazy val zio_nio = project
   .dependsOn(zio_nio_core)
   .settings(
     libraryDependencies ++= Seq(
-      "dev.zio" %% "zio-test-sbt" % "1.0.9" % Test
+      "dev.zio" %% "zio-test-sbt" % "1.0.10" % Test
     )
   , testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
-  , scalaVersion := "3.0.2-RC1"
-  , crossScalaVersions := "3.0.2-RC1" :: "2.13.6" :: Nil
+  , scalaVersion := "3.1.0-RC1"
+  , crossScalaVersions := "3.1.0-RC1" :: "2.13.6" :: Nil
   , scalacOptions += "-nowarn"
   )
   .dependsOn(zio_nio_core)
@@ -43,12 +43,12 @@ lazy val zio_nio_core = project
   .in(file("deps/zio-nio/nio-core"))
   .settings(
     libraryDependencies ++= Seq(
-      "dev.zio" %% "zio-streams"  % "1.0.9"
-    , "dev.zio" %% "zio-test-sbt" % "1.0.9" % Test
+      "dev.zio" %% "zio-streams"  % "1.0.10"
+    , "dev.zio" %% "zio-test-sbt" % "1.0.10" % Test
     )
   , testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
-  , scalaVersion := "3.0.2-RC1"
-  , crossScalaVersions := "3.0.2-RC1" :: "2.13.6" :: Nil
+  , scalaVersion := "3.1.0-RC1"
+  , crossScalaVersions := "3.1.0-RC1" :: "2.13.6" :: Nil
   , scalacOptions += "-nowarn"
   )
 

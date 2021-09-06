@@ -23,9 +23,9 @@ type WsHandler[R] = Msg => RIO[WsContext & R, Unit]
 
 def processHttp[R <: Has[?]](ch: SocketChannel, h: HttpHandler[R])(protocol: Protocol.Http, chunk: Chunk[Byte]): RIO[R & Blocking, Protocol] =
   http.processChunk(chunk, protocol.state).flatMap{
-    case s: HttpState.MsgDone =>
+    case HttpState.MsgDone(meta, body) =>
+      val req = Request(method=meta.method, url=meta.url, meta.headers, body)
       for
-        req <- toReq(s.msg)
         resp <- h(req)
         res <-
           resp match
@@ -54,16 +54,13 @@ def processHttp[R <: Has[?]](ch: SocketChannel, h: HttpHandler[R])(protocol: Pro
     case BadReq => IO.succeed((Protocol.http, Some(Response.empty(400))))
     case e: Throwable => IO.fail(e)
   }.tap{
-    case (p, Some(Response(code@ 101, headers, None))) =>
+    case (p, Some(Response(code@ 101, headers, _))) =>
       ch.write(buildRe(code, headers))
-    
-    case (p, Some(Response(code, headers, None))) =>
-      ch.write(buildRe(code, headers)) *> ch.close
 
-    case (p, Some(Response(code, headers, body: Chunk[Byte]))) =>
+    case (p, Some(Response(code, headers, BodyChunk(body)))) =>
       ch.write(buildRe(code, headers)) *> ch.write(body) *> ch.close
     
-    case (p, Some(Response(code, headers, ZStreamOn(body, onError, onSuccess)))) =>
+    case (p, Some(Response(code, headers, BodyStream(body)))) =>
       for
         _ <- ch.write(buildRe(code, headers :+ ("Transfer-Encoding" -> "chunked")))
         _ <-
@@ -74,7 +71,7 @@ def processHttp[R <: Has[?]](ch: SocketChannel, h: HttpHandler[R])(protocol: Pro
               _ <- ch.write(x)
               _ <- ch.write(Chunk.fromArray("\r\n".getBytes("ascii").nn))
             yield unit
-          ).tapBoth(onError, onSuccess)
+          )
         _ <- ch.write(Chunk.fromArray("0\r\n\r\n".getBytes("ascii").nn))
         _ <- ch.close
       yield unit

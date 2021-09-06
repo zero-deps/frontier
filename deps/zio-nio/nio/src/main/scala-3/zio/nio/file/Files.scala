@@ -320,8 +320,8 @@ object Files {
       .map(Path.fromJava)
   }
 
-  def getAndDelete(p: Path): ZManaged[Blocking, Throwable, InputStream] =
-    zio.stream.ZStream.fromFile(p.javaPath).toInputStream <* ZManaged.fromEffect(delete(p))
+  def toInputStream(p: Path): ZManaged[Blocking, Throwable, InputStream] =
+    zio.stream.ZStream.fromFile(p.javaPath).toInputStream
 
 //
 //  def copy(in: ZStream[Blocking, Exception, Chunk[Byte]], target: Path, options: CopyOption*): ZIO[Blocking, Exception, Long] = {
