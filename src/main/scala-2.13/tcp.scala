@@ -1,8 +1,8 @@
 package ftier
 
-import zio._, duration._, nio._, core._, core.channels._
-import java.nio.channels.{ServerSocketChannel => JServerSocketChannel, SocketChannel => JSocketChannel, CancelledKeyException}
+import java.nio.channels.{ServerSocketChannel => JServerSocketChannel, SocketChannel => JSocketChannel, CancelledKeyException, ClosedChannelException}
 import java.io.IOException
+import zio._, clock._, duration._, nio._, core._, core.channels._
 
 object tcp {
     val size2mb = 2 * 1024 * 1024
@@ -16,10 +16,10 @@ object tcp {
     def getServerSocketChannel(key: SelectionKey): Task[ServerSocketChannel] =
         key.channel >>= (ch => IO.effect(ch.asInstanceOf[JServerSocketChannel])) >>= ServerSocketChannel.fromJava
     
-    def select(selector: Selector, f: SelectionKey => Task[Any]): Task[Unit] = for {
-           _ <- selector.select(10 millisecond)
+    def select[R](selector: Selector, f: SelectionKey => RIO[R, Any]): RIO[R, Unit] = for {
+           _ <- selector.select(10.millisecond)
         keys <- selector.selectedKeys
-           _ <- IO.foreach(keys){ key =>
+           _ <- ZIO.foreach(keys){ key =>
                     Managed.make(IO.succeed(key))(selector.removeKey(_).ignore).use{ k =>
                         IO.whenM(k.isValid) {
                             f(k).catchAllCause(err =>
@@ -41,7 +41,8 @@ object tcp {
                         c <- chunks.get
                         _ <- chunks.set(c ++ a)
                     } yield if (c.length > size2mb) -1 else n).catchSome{
-                        case err: IOException if err.getMessage.contains("Connection reset") => IO.succeed(-1)
+                        case _: ClosedChannelException                                                         => IO.succeed(-1)
+                        case err: IOException if Option(err.getMessage).exists(_.contains("Connection reset")) => IO.succeed(-1)
                     }.repeatWhile(_ > 0)
         chunks   <- chunks.get
     } yield (lastN, chunks)
@@ -51,7 +52,7 @@ object tcp {
              accessSelector: Selector,
              readSelectors: Vector[Selector],
              init: TcpInit
-            ): Task[Unit] = for {
+            ): RIO[Clock, Unit] = for {
         _        <- serverChannel.configureBlocking(false)
         _        <- serverChannel.bind(addr)
         _        <- serverChannel.register(accessSelector, SelectionKey.Operation.Accept)
@@ -74,14 +75,17 @@ object tcp {
         _        <- ZIO.collectAll(readSelectors.map(readSelector => Buffer.byte(4096).flatMap(buffer =>
                         select(readSelector, key =>
                             IO.whenM(key.isReadable: Task[Boolean]) {
-                                read(buffer, key).flatMap{ case (n, chunk) => for {
-                                    channel <- getSocketChannel(key)
-                                    _       <- ZIO.when(n < 0)(channel.close)
-                                    handler <- key.attachment
-                                    handler <- ZIO.fromOption(handler).orElseFail(new RuntimeException("wrong state"))
-                                    handler <- ZIO.effect(handler.asInstanceOf[TcpHandler])
-                                    _       <- handler(chunk)
-                                } yield ()}
+                                read(buffer, key).flatMap{ case (n, chunk) => 
+                                    (for {
+                                        channel <- getSocketChannel(key)
+                                        _       <- ZIO.when(n < 0)(channel.close)
+                                        handler <- key.attachment
+                                        handler <- ZIO.fromOption(handler).orElseFail(new RuntimeException("wrong state"))
+                                        handler <- ZIO.effect(handler.asInstanceOf[TcpHandler])
+                                        _       <- handler(chunk)
+                                    } yield ())
+                                        .retry(Schedule.spaced(2.millisecond) && Schedule.recurs(3))
+                                }
                             }
                         ).forever.orDie.fork
                     )))
@@ -91,7 +95,7 @@ object tcp {
     def bind(addr: SocketAddress,
              workers: Int,
              init: TcpInit,
-            ): Task[Unit] =
+            ): RIO[Clock, Unit] =
         ServerSocketChannel.open.toManaged(_.close.orDie).use{ serverChannel =>
             Selector.make.toManaged(_.close.orDie).use{ accessSelector =>
                 Managed.collectAll(Vector.fill(workers)(Selector.make.toManaged(_.close.orDie))).use { readSelectors =>

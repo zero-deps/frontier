@@ -1,6 +1,6 @@
 package ftier
 
-import zio._, nio._, core._, core.channels._
+import zio._, clock._, nio._, core._, core.channels._
 
 import http._, ws._
 
@@ -35,10 +35,12 @@ object httpServer {
         }
       case s => 
         IO.succeed((protocol.copy(state=s), None))
-    }.catchAll{
-      case HttpErr.NotHandled => IO.succeed((Protocol.http, Some(Response(501))))
-      case e: HttpErr         => IO.succeed((Protocol.http, Some(Response(400))))
-      case e                  => IO.succeed((Protocol.http, Some(Response(500))))
+    }.catchAllTrace{
+      case (HttpErr.NotHandled, _) => IO.succeed((Protocol.http, Some(Response(404))))
+      case (e: HttpErr, _)         => IO.succeed((Protocol.http, Some(Response(400))))
+      case (err, trace)            =>
+        println(s"http failed with err: $err, trace: ${trace.map(_.prettyPrint)}")
+        IO.succeed((Protocol.http, Some(Response(500))))
     }.flatMap{ 
       case (p, Some(resp)) if resp.code == 101 => channel.write(build(resp)) *> IO.succeed(p)
       case (p, Some(resp)) => channel.write(build(resp)) *> channel.close *> IO.succeed(p)
@@ -47,9 +49,14 @@ object httpServer {
       case p: Http => IO.succeed(p)
       case p: Ws   =>
         val ctx: ULayer[WsContext] = ZLayer.succeed(p.ctx)
-        handler2(Open).provideLayer(ctx).catchAllCause(err =>
-            IO.effect(println(s"ws err ${err.prettyPrint}"))
-        ).ignore *> IO.succeed(p)
+        handler2(Open)
+          .catchAllTrace { case (err, trace) =>
+            def printTrace = trace.map(_.prettyPrint).getOrElse("-")
+            IO.effect(println(s"ws failed with err: $err, trace: $printTrace"))
+          }
+          .provideLayer(ctx)
+          .ignore
+          .as(p)
     }
   }
 
@@ -79,7 +86,7 @@ object httpServer {
     _    <- state.set(data)
   } yield ()
 
-  def bind(addr: SocketAddress, handler1: UIO[HttpHandler], handler2: UIO[WsHandler]): Task[Unit] = {
+  def bind(addr: SocketAddress, handler1: UIO[HttpHandler], handler2: UIO[WsHandler]): RIO[Clock, Unit] = {
     tcp.bind(addr, 1, channel => 
       Ref.make[Protocol](Protocol.http).flatMap{ state =>
         handler1.flatMap{ h1 =>
