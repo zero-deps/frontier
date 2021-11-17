@@ -90,34 +90,14 @@ object http {
         }
     }
 
-    def build(resp: Response): Chunk[Byte] = {
-        val sb = new StringBuilder(16)
-        sb.append("HTTP/1.1 ")
-        sb.append(resp.code.toString)
-        sb.append("\r\n")
-        resp.headers.foreach { case (k, v) =>
-            sb.append(k)
-            sb.append(": ")
-            sb.append(v)
-            sb.append("\r\n")
-        }
-        sb.append("\r\n")
-        Chunk.fromArray(sb.toString.getBytes("utf-8")) ++ resp.body
-    }
+    def build(resp: Response): Chunk[Byte] = Chunk.fromArray(
+        s"""|HTTP/1.1 ${resp.code} \r
+            |${resp.headers.map{case (k, v) => s"$k: $v\r\n"}.mkString}\r
+            |""".stripMargin.getBytes("UTF-8")) ++ resp.body
     
-    def buildUnused(req: Request): Chunk[Byte] = {
-        val sb = new StringBuilder(16)
-        sb.append(req.method)
-        sb.append(" ")
-        sb.append(req.url)
-        sb.append("HTTP/1.1\r\n")
-        req.headers.foreach { case (k, v) =>
-            sb.append(k)
-            sb.append(": ")
-            sb.append(v)
-            sb.append("\r\n")
-        }
-        sb.append("\r\n")
-        Chunk.fromArray(sb.toString.getBytes("utf-8")) ++ req.body
-    }
+    def build(req: Request): Chunk[Byte] = Chunk.fromArray(
+        s"""${req.method} ${req.url} HTTP/1.1\r
+           |${req.headers.map{case (k, v) => s"$k: $v\r\n"}.mkString}\r
+           |""".stripMargin.getBytes("UTF-8")
+    )
 }
