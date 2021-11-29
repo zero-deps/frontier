@@ -2,7 +2,7 @@ package ftier
 package http
 package server
 
-import zio.*, nio.*, core.*, core.channels.*, stream.*, blocking.*
+import zio.*, clock.*, nio.*, core.*, core.channels.*, stream.*, blocking.*
 import ws.*
 
 import ext.{*, given}
@@ -112,7 +112,7 @@ def httpProtocol[R <: Has[?]](ch: SocketChannel, h: HttpHandler[R], state: Ref[P
     _ <- state.set(data)
   yield unit
 
-def bind[R <: Has[?]](addr: SocketAddress, h: HttpHandler[R]): RIO[R & Blocking, Unit] =
+def bind[R <: Has[?]](addr: SocketAddress, h: HttpHandler[R]): RIO[R & Blocking & Clock, Unit] =
   for
     r <- ZIO.environment[R & Blocking]
     _ <- tcp.bind(addr, 1, ch =>
