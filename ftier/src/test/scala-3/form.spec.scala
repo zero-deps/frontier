@@ -20,12 +20,11 @@ object FormSpec extends DefaultRunnableSpec:
         "Documents_Edit\r\n" +
         "------WebKitFormBoundaryAtKqfnKiF0dX7jp6--"
       ).getBytes("utf8").nn
-      val msg = HttpMessage()
-      val state: HttpState.AwaitForm = HttpState.AwaitForm("", Map.empty, Chunk.fromArray(form), Nil, "----WebKitFormBoundaryAtKqfnKiF0dX7jp6", None)
+      val state: HttpState.AwaitForm = HttpState.AwaitForm(meta=MetaData("POST", "", Map.empty), body=Chunk.fromArray(form), form=Nil, bound="----WebKitFormBoundaryAtKqfnKiF0dX7jp6", curr=None)
       for
         form <-
           awaitForm(state, Chunk.empty).collect("bad state"){
-            case HttpState.MsgDone(_, _, body: Seq[FormData]) => body
+            case HttpState.MsgDone(_, body: BodyForm) => body.x
           }
         f <- form.collectFirst{ case FormData.File("file", p) => Files.readAllBytes(p).map(x => String(x.toArray)) }.getOrElse(IO.fail("no file"))
         c = form.collectFirst{ case FormData.Param("component", p) => String(p.toArray) }
