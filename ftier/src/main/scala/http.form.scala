@@ -2,6 +2,7 @@ package ftier
 package http
 
 import java.io.IOException
+import java.nio.file.StandardOpenOption
 import scala.util.chaining.*
 import scala.annotation.tailrec
 import zio.*, stream.*, blocking.*
@@ -34,11 +35,11 @@ def awaitForm(state: HttpState.AwaitForm, chunk: Chunk[Byte]): ZIO[Blocking, Bad
           ls.length match
             case 0 =>
               for
-                field <- appendField(curr, lastChunk)
+                field <- appendField(curr, lastChunk, rn)
               yield state.copy(body = Chunk.empty, curr = Some(field))
             case 1 =>
               for
-                field <- appendField(curr, ls.head)
+                field <- appendField(curr, ls.head, rn)
               yield
                 if lastChunk == `--bound--` then
                   HttpState.MsgDone(state.meta, BodyForm(state.form :+ field))
@@ -47,7 +48,7 @@ def awaitForm(state: HttpState.AwaitForm, chunk: Chunk[Byte]): ZIO[Blocking, Bad
             case _ =>
               for
                 (head, tail) <- IO.succeed(ls.splitAt(1))
-                field <- appendField(curr, head.head)
+                field <- appendField(curr, head.head, rn)
                 s: HttpState.AwaitForm = state.copy(body = Chunk.empty, form = state.form :+ field, curr = None)
                 s1 <- whenNoCurr(tail, lastChunk, `--bound`, `--bound--`, rn, s)
               yield s1): ZIO[Blocking, BadReq.type | Exception, HttpState])
@@ -62,7 +63,29 @@ private def whenNoCurr(ls: Chunk[Chunk[Byte]], lastChunk: Chunk[Byte], `--bound`
         IO.succeed(state.copy(body = lastChunk))
     case Some(head) =>
       if head != `--bound` then
-        IO.fail(BadReq)
+        state.curr match
+          case None => IO.fail(BadReq)
+          case Some(curr) =>
+            ls.length match
+              case 0 =>
+                for
+                  field <- appendField(curr, lastChunk, rn)
+                yield state.copy(body = Chunk.empty, curr = Some(field))
+              case 1 =>
+                for
+                  field <- appendField(curr, ls.head, rn)
+                yield
+                  if lastChunk == `--bound--` then
+                    HttpState.MsgDone(state.meta, BodyForm(state.form))
+                  else
+                    state.copy(body = lastChunk, curr = None)
+              case _ =>
+                for
+                  (head, tail) <- IO.succeed(ls.splitAt(1))
+                  field <- appendField(curr, head.head, rn)
+                  s: HttpState.AwaitForm = state.copy(body = Chunk.empty)
+                  s1 <- whenNoCurr(tail, lastChunk, `--bound`, `--bound--`, rn, s)
+                yield s1
       else
         // get all headers
         ls.indexWhere(_.isEmpty, 0) match
@@ -97,12 +120,12 @@ private def whenNoCurr(ls: Chunk[Chunk[Byte]], lastChunk: Chunk[Byte], `--bound`
                           if lastChunk == `--bound--` then
                             HttpState.MsgDone(state.meta, BodyForm(state.form :+ field))
                           else
-                            state.copy(body = lastChunk, form = state.form :+ field)
+                            state.copy(body = lastChunk, form = state.form :+ field, curr = None)
                       case _ =>
                         for
                           (head, tail) <- IO.succeed(others.splitAt(1))
                           field <- writeField(name, isFile, head.head)
-                          (s: HttpState.AwaitForm) = state.copy(body = Chunk.empty, form = state.form :+ field)
+                          (s: HttpState.AwaitForm) = state.copy(body = Chunk.empty, form = state.form :+ field, curr = Some(field))
                           s1 <- whenNoCurr(tail, lastChunk, `--bound`, `--bound--`, rn, s)
                         yield s1
 
@@ -117,9 +140,9 @@ private def writeField(name: String, isFile: Boolean, value: Chunk[Byte]): ZIO[B
   else
     IO.succeed(FormData.Param(name, value))
 
-private def appendField(field: FormData, value: Chunk[Byte]): ZIO[Blocking, Exception, FormData] =
+private def appendField(field: FormData, value: Chunk[Byte], rn: Chunk[Byte]): ZIO[Blocking, Exception, FormData] =
   field match
     case x: FormData.File =>
-      Files.writeBytes(x.path, value).map(_ => x)
+      Files.writeBytes(x.path, rn ++ value, StandardOpenOption.APPEND).map(_ => x)
     case x: FormData.Param =>
       IO.succeed(x.copy(value = x.value ++ value))
