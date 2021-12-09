@@ -27,34 +27,10 @@ def awaitForm(state: HttpState.AwaitForm, chunk: Chunk[Byte]): ZIO[Blocking, Bad
     (ls, lastChunk) = lines.splitAt(lines.length - 1).pipe(x => (x._1, x._2.head))
     `--bound` <- IO.effectTotal(Chunk.fromArray(s"--$bound".getBytes.nn))
     `--bound--` <- IO.effectTotal(Chunk.fromArray(s"--$bound--".getBytes.nn))
-    s <-
-      ((curr match
-        case None =>
-          whenNoCurr(ls, lastChunk, `--bound`, `--bound--`, rn, state)
-        case Some(curr) =>
-          ls.length match
-            case 0 =>
-              for
-                field <- appendField(curr, lastChunk, rn)
-              yield state.copy(body = Chunk.empty, curr = Some(field))
-            case 1 =>
-              for
-                field <- appendField(curr, ls.head, rn)
-              yield
-                if lastChunk == `--bound--` then
-                  HttpState.MsgDone(state.meta, BodyForm(state.form :+ field))
-                else
-                  state.copy(body = lastChunk, form = state.form :+ field, curr = None)
-            case _ =>
-              for
-                (head, tail) <- IO.succeed(ls.splitAt(1))
-                field <- appendField(curr, head.head, rn)
-                s: HttpState.AwaitForm = state.copy(body = Chunk.empty, form = state.form :+ field, curr = None)
-                s1 <- whenNoCurr(tail, lastChunk, `--bound`, `--bound--`, rn, s)
-              yield s1): ZIO[Blocking, BadReq.type | Exception, HttpState])
+    s <- readForm(ls, lastChunk, `--bound`, `--bound--`, rn, state)
   yield s
 
-private def whenNoCurr(ls: Chunk[Chunk[Byte]], lastChunk: Chunk[Byte], `--bound`: Chunk[Byte], `--bound--`: Chunk[Byte], rn: Chunk[Byte], state: HttpState.AwaitForm): ZIO[Blocking, BadReq.type | Exception, HttpState] =
+private def readForm(ls: Chunk[Chunk[Byte]], lastChunk: Chunk[Byte], `--bound`: Chunk[Byte], `--bound--`: Chunk[Byte], rn: Chunk[Byte], state: HttpState.AwaitForm): ZIO[Blocking, BadReq.type | Exception, HttpState] =
   ls.headOption match
     case None =>
       if lastChunk == `--bound--` then
@@ -78,13 +54,13 @@ private def whenNoCurr(ls: Chunk[Chunk[Byte]], lastChunk: Chunk[Byte], `--bound`
                   if lastChunk == `--bound--` then
                     HttpState.MsgDone(state.meta, BodyForm(state.form))
                   else
-                    state.copy(body = lastChunk, curr = None)
+                    state.copy(body = lastChunk, curr = Some(field))
               case _ =>
                 for
                   (head, tail) <- IO.succeed(ls.splitAt(1))
                   field <- appendField(curr, head.head, rn)
                   s: HttpState.AwaitForm = state.copy(body = Chunk.empty)
-                  s1 <- whenNoCurr(tail, lastChunk, `--bound`, `--bound--`, rn, s)
+                  s1 <- readForm(tail, lastChunk, `--bound`, `--bound--`, rn, s)
                 yield s1
       else
         // get all headers
@@ -126,7 +102,7 @@ private def whenNoCurr(ls: Chunk[Chunk[Byte]], lastChunk: Chunk[Byte], `--bound`
                           (head, tail) <- IO.succeed(others.splitAt(1))
                           field <- writeField(name, isFile, head.head)
                           (s: HttpState.AwaitForm) = state.copy(body = Chunk.empty, form = state.form :+ field, curr = Some(field))
-                          s1 <- whenNoCurr(tail, lastChunk, `--bound`, `--bound--`, rn, s)
+                          s1 <- readForm(tail, lastChunk, `--bound`, `--bound--`, rn, s)
                         yield s1
 
 private def writeField(name: String, isFile: Boolean, value: Chunk[Byte]): ZIO[Blocking, Exception, FormData] =

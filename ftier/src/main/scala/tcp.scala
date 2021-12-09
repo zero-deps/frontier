@@ -49,7 +49,7 @@ def read(buffer: ByteBuffer, key: SelectionKey): Task[(Int, Chunk[Byte])] =
         a <- buffer.getChunk()
         c <- chunks.get
         _ <- chunks.set(c ++ a)
-      } yield if (c.length > size2mb) -1 else n).catchSome{
+      } yield if (c.length > size2mb) 0 else n).catchSome{
         case _: ClosedChannelException                                                         => IO.succeed(-1)
         case err: IOException if err.getMessage.toOption.exists(_.contains("Connection reset")) => IO.succeed(-1)
       }.repeatWhile(_ > 0)
