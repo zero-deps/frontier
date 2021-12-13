@@ -74,7 +74,7 @@ object ws {
     case 0x2 => Binary(payload)
     case 0x8 => Close
     case 0x9 => Ping
-    case 0xA => Ping
+    case 0xA => Pong
     case 0xF => Open
     case _   => Unknown(opcode, payload)
   }
