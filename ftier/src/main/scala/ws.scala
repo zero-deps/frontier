@@ -80,7 +80,7 @@ def read(opcode: Int, payload: Chunk[Byte], fin: Boolean, fragmentsOpcode: Optio
   case (0x2, _) => Binary(payload, fin)
   case (0x8, _) => Close
   case (0x9, _) => Ping
-  case (0xA, _) => Ping
+  case (0xA, _) => Pong
   case (0xF, _) => Open
   case (_  , _) => Unknown(opcode, payload)
 }
