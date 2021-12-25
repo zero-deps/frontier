@@ -22,9 +22,11 @@ object tcp {
            _ <- ZIO.foreach(keys){ key =>
                     Managed.make(IO.succeed(key))(selector.removeKey(_).ignore).use{ k =>
                         IO.whenM(k.isValid) {
-                            f(k).catchAllCause(err =>
-                                IO.effect(println(s"key err ${err.prettyPrint}"))
-                            )
+                            f(k)
+                                .catchSome(ignorableErr(()))
+                                .catchAllCause(err =>
+                                    IO.effect(println(s"key err ${err.prettyPrint}"))
+                                )
                         }
                     }
                 }
@@ -40,10 +42,9 @@ object tcp {
                         a <- buffer.getChunk()
                         c <- chunks.get
                         _ <- chunks.set(c ++ a)
-                    } yield if (c.length > size2mb) -1 else n).catchSome{
-                        case _: ClosedChannelException                                                         => IO.succeed(-1)
-                        case err: IOException if Option(err.getMessage).exists(_.contains("Connection reset")) => IO.succeed(-1)
-                    }.repeatWhile(_ > 0)
+                    } yield if (c.length > size2mb) -1 else n)
+                        .catchSome(ignorableErr(-1))
+                        .repeatWhile(_ > 0)
         chunks   <- chunks.get
     } yield (lastN, chunks)
 
@@ -103,6 +104,11 @@ object tcp {
                 }
             }
         }
+
+    def ignorableErr[A](r: => A): PartialFunction[Throwable, UIO[A]] = {
+        case _: ClosedChannelException                                                         => UIO(r)
+        case err: IOException if Option(err.getMessage).exists(_.contains("Connection reset")) => UIO(r)
+    }
 
     // case class ConnectionPool(connectSelector: Selector, readSelector: Selector)
     // case class Connection(channel: SocketChannel, cp: ConnectionPool)
