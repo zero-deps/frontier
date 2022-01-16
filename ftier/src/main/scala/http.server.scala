@@ -36,9 +36,13 @@ def processHttp[R <: Has[?]](ch: SocketChannel, h: HttpHandler[R])(protocol: Pro
                     req
                   , msg => for
                       bb <- write(msg).orDie
-                      _ <- ch.write(bb).orDie
+                      _ <- IO.whenM(ch.isConnected){ ch.write(bb) }.orDie
                     yield unit
-                  , ch.close
+                  , status => for
+                      bb <- write(Close(status)).orDie
+                      _ <- IO.whenM(ch.isConnected){ ch.write(bb) }.orDie
+                      _ <- IO.whenM(ch.isConnected){ ch.close }.orDie
+                    yield unit                
                   , java.util.UUID.randomUUID().toString
                   ),
                   x.handler
@@ -93,9 +97,9 @@ def processWs[R <: Has[?]](ch: SocketChannel)(protocol: Protocol.Ws[R], chunk: C
     case WsState(Some(h: WsHeader), chunk, fragmentsOpcode) if h.size <= chunk.length =>
       val (data, rem) = chunk.splitAt(h.size)
       val payload = processMask(h.mask, h.maskN, data)
-      val msg = read(h.opcode, payload, h.fin, fragmentsOpcode)
       val ctx: ULayer[WsContext] = ZLayer.succeed(protocol.ctx)
       for
+        msg <- read(h.opcode, payload, h.fin, fragmentsOpcode)
         _ <- protocol.handler(msg).provideSomeLayer[R](ctx)
         r <- processWs(ch)(protocol.copy(state=WsState(None, rem, fragmentsOpcode)), Chunk.empty)
       yield r
