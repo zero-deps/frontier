@@ -1,9 +1,9 @@
 lazy val ftier = project
   .in(file("ftier"))
   .settings(
-    scalaVersion := "3.1.0-RC2"
+    scalaVersion := "3.1.1"
   , libraryDependencies ++= Seq(
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.13.0-rc2"
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.13.1"
     , "dev.zio" %% "zio-test-sbt" % "1.0.10" % Test
     )
   , testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
@@ -26,7 +26,7 @@ lazy val zio_nio = project
       "dev.zio" %% "zio-test-sbt" % "1.0.10" % Test
     )
   , testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
-  , scalaVersion := "3.1.0-RC2"
+  , scalaVersion := "3.1.1"
   , scalacOptions += "-nowarn"
   )
   .dependsOn(zio_nio_core)
@@ -39,7 +39,7 @@ lazy val zio_nio_core = project
     , "dev.zio" %% "zio-test-sbt" % "1.0.10" % Test
     )
   , testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
-  , scalaVersion := "3.1.0-RC2"
+  , scalaVersion := "3.1.1"
   , scalacOptions += "-nowarn"
   )
 
