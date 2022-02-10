@@ -116,10 +116,10 @@ def httpProtocol[R <: Has[?]](ch: SocketChannel, h: HttpHandler[R], state: Ref[P
     _ <- state.set(data)
   yield unit
 
-def bind[R <: Has[?]](addr: SocketAddress, h: HttpHandler[R]): RIO[R & Blocking & Clock, Unit] =
+def bind[R <: Has[?]](addr: SocketAddress, h: HttpHandler[R], conf: ServerConf = ServerConf.default): RIO[R & Blocking & Clock, Unit] =
   for
     r <- ZIO.environment[R & Blocking]
-    _ <- tcp.bind(addr, 1, ch =>
+    _ <- tcp.bind(addr, conf.workers, ch =>
       for
         state <- Ref.make[Protocol](Protocol.http)
       yield httpProtocol(ch, h, state)(_).provide(r)
