@@ -186,33 +186,33 @@ object FormSpec extends DefaultRunnableSpec:
         assert(components)(equalTo(Set("SomeData11", "SomeData22", "SomeData22", "SomeData33", "SomeData44", "SomeData55", "SomeData66", "SomeData77")))
     },
 
-    // testM("boundary devided") {
-    //   val form1 = (
-    //    """|------WebKitFormBoundaryAtKqfnKiF0dX7jp6
-    //       |Content-Disposition: form-data; name="component"
-    //       |
-    //       |Data_data_1
-    //       |------WebKitFormBoun"""
-    //   ).stripMargin.getBytes("utf8").nn
+    testM("boundary devided") {
+      val form1 = (
+       """|------WebKitFormBoundaryAtKqfnKiF0dX7jp6
+          |Content-Disposition: form-data; name="component"
+          |
+          |Data_data_1
+          |------WebKitFormBoun"""
+      ).stripMargin.getBytes("utf8").nn
 
-    //   val form2 = (
-    //    """daryAtKqfnKiF0dX7jp6
-    //       |Content-Disposition: form-data; name="component"
-    //       |
-    //       |2_data_Data
-    //       |------WebKitFormBoundaryAtKqfnKiF0dX7jp6--"""
-    //   ).stripMargin.getBytes("utf8").nn
+      val form2 = (
+       """daryAtKqfnKiF0dX7jp6
+          |Content-Disposition: form-data; name="component"
+          |
+          |2_data_Data
+          |------WebKitFormBoundaryAtKqfnKiF0dX7jp6--"""
+      ).stripMargin.getBytes("utf8").nn
 
-    //   val state: HttpState.AwaitForm = HttpState.AwaitForm(meta=MetaData("POST", "", Map.empty), body=Chunk.fromArray(form1), form=Nil, bound="----WebKitFormBoundaryAtKqfnKiF0dX7jp6", curr=None)
+      val state: HttpState.AwaitForm = HttpState.AwaitForm(meta=MetaData("POST", "", Map.empty), body=Chunk.fromArray(form1), form=Nil, bound="----WebKitFormBoundaryAtKqfnKiF0dX7jp6", curr=None)
 
-    //   for
-    //     s <- awaitForm(state, Chunk.empty).collect("bad state"){ case s: HttpState.AwaitForm => s }
-    //     form <- awaitForm(s, Chunk.fromArray(form2)).collect("bad state"){ case HttpState.MsgDone(_, body: BodyForm) => body.x }
-    //     components =
-    //       form.collect{
-    //         case FormData.Param("component", c) => String(c.toArray, "utf8")
-    //       }.toSet
-    //   yield
-    //       assert(components)(equalTo(Set("Data_data_1", "2_data_Data")))
-    // },
+      for
+        s <- awaitForm(state, Chunk.empty).collect("bad state"){ case s: HttpState.AwaitForm => s }
+        form <- awaitForm(s, Chunk.fromArray(form2)).collect("bad state"){ case HttpState.MsgDone(_, body: BodyForm) => body.x }
+        components =
+          form.collect{
+            case FormData.Param("component", c) => String(c.toArray, "utf8")
+          }.toSet
+      yield
+          assert(components)(equalTo(Set("Data_data_1", "2_data_Data")))
+    },
   )

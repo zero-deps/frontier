@@ -58,8 +58,9 @@ def readForm(state: HttpState.AwaitForm, chunk: Chunk[Byte], `--bound`: Chunk[By
       case Some(param: FormData.Param) =>
         data.toArray.indexOfSlice(`\r\n--bound`) match
           case -1 =>
-            val p = param.copy(value = param.value ++ data)
-            IO.succeed(state.copy(body = Chunk.empty, curr = Some(p)))
+            val (dataToWrite, tail) = data.toArray.splitAt(data.size - `\r\n--bound`.length)
+            val p = param.copy(value = param.value ++ Chunk.fromArray(dataToWrite))
+            IO.succeed(state.copy(body = Chunk.fromArray(tail), curr = Some(p)))
           case  i => 
             val (paramData, other) = data.splitAt(i)
             val p = param.copy(value = param.value ++ paramData)
@@ -69,7 +70,8 @@ def readForm(state: HttpState.AwaitForm, chunk: Chunk[Byte], `--bound`: Chunk[By
       case Some(file: FormData.File) =>
         data.toArray.indexOfSlice(`\r\n--bound`) match
           case -1 =>
-            for _ <- appendFile(file, data) yield state.copy(body = Chunk.empty)
+            val (dataToWrite, tail) = data.toArray.splitAt(data.size - `\r\n--bound`.length)
+            for _ <- appendFile(file, Chunk.fromArray(dataToWrite)) yield state.copy(body = Chunk.fromArray(tail))
           case  i =>
             val (fileData, other) = data.splitAt(i)
             for
