@@ -20,11 +20,11 @@ object FormSpec extends DefaultRunnableSpec:
           |------WebKitFormBoundaryAtKqfnKiF0dX7jp6--"""
       ).stripMargin.getBytes("utf8").nn
 
-      val state: HttpState.AwaitForm = HttpState.AwaitForm(meta=MetaData("POST", "", Map.empty), body=Chunk.fromArray(form), form=Nil, bound="----WebKitFormBoundaryAtKqfnKiF0dX7jp6", curr=None)
+      val state: HttpState.AwaitForm = HttpState.AwaitForm(meta=MetaData("POST", "", Map.empty), body=form, form=Nil, bound="----WebKitFormBoundaryAtKqfnKiF0dX7jp6", curr=None)
 
       for
         form <-
-          awaitForm(state, Chunk.empty).collect("bad state"){
+          awaitForm(state, Array.empty).collect("bad state"){
             case HttpState.MsgDone(_, body: BodyForm) => body.x
           }
         components =
@@ -36,21 +36,21 @@ object FormSpec extends DefaultRunnableSpec:
     },
     testM("file one line") {
       val form = (
-       """|------WebKitFormBoundaryAtKqfnKiF0dX7jp6
+       """------WebKitFormBoundaryAtKqfnKiF0dX7jp6
+          |Content-Disposition: form-data; name="component"
+          |
+          |Documents_Edit
+          |------WebKitFormBoundaryAtKqfnKiF0dX7jp6
           |Content-Disposition: form-data; name="file"; filename="some_file_name.txt"
           |Content-Type: application/octet-stream
           |
           |abc
-          |------WebKitFormBoundaryAtKqfnKiF0dX7jp6
-          |Content-Disposition: form-data; name="component"
-          |
-          |Documents_Edit
           |------WebKitFormBoundaryAtKqfnKiF0dX7jp6--"""
       ).stripMargin.getBytes("utf8").nn
-      val state: HttpState.AwaitForm = HttpState.AwaitForm(meta=MetaData("POST", "", Map.empty), body=Chunk.fromArray(form), form=Nil, bound="----WebKitFormBoundaryAtKqfnKiF0dX7jp6", curr=None)
+      val state: HttpState.AwaitForm = HttpState.AwaitForm(meta=MetaData("POST", "", Map.empty), body=form, form=Nil, bound="----WebKitFormBoundaryAtKqfnKiF0dX7jp6", curr=None)
       for
         form <-
-          awaitForm(state, Chunk.empty).collect("bad state"){
+          awaitForm(state, Array.empty).collect("bad state"){
             case HttpState.MsgDone(_, body: BodyForm) => body.x
           }
         f <- form.collectFirst{ case FormData.File("file", p) => Files.readAllBytes(p).map(x => String(x.toArray)) }.getOrElse(IO.fail("no file"))
@@ -73,10 +73,10 @@ object FormSpec extends DefaultRunnableSpec:
           |1tnenopmoC
           |------WebKitFormBoundaryAtKqfnKiF0dX7jp6--"""
       ).stripMargin.getBytes("utf8").nn
-      val state: HttpState.AwaitForm = HttpState.AwaitForm(meta=MetaData("POST", "", Map.empty), body=Chunk.fromArray(form), form=Nil, bound="----WebKitFormBoundaryAtKqfnKiF0dX7jp6", curr=None)
+      val state: HttpState.AwaitForm = HttpState.AwaitForm(meta=MetaData("POST", "", Map.empty), body=form, form=Nil, bound="----WebKitFormBoundaryAtKqfnKiF0dX7jp6", curr=None)
       for
         form <-
-          awaitForm(state, Chunk.empty).collect("bad state"){
+          awaitForm(state, Array.empty).collect("bad state"){
             case HttpState.MsgDone(_, body: BodyForm) => body.x
           }
         f <- form.collectFirst{ case FormData.File("file", p) => Files.readAllBytes(p).map(x => String(x.toArray)) }.getOrElse(IO.fail("no file"))
@@ -103,11 +103,11 @@ object FormSpec extends DefaultRunnableSpec:
           |------WebKitFormBoundaryAtKqfnKiF0dX7jp6--"""
       ).stripMargin.getBytes("utf8").nn
 
-      val state: HttpState.AwaitForm = HttpState.AwaitForm(meta=MetaData("POST", "", Map.empty), body=Chunk.fromArray(form1), form=Nil, bound="----WebKitFormBoundaryAtKqfnKiF0dX7jp6", curr=None)
+      val state: HttpState.AwaitForm = HttpState.AwaitForm(meta=MetaData("POST", "", Map.empty), body=form1, form=Nil, bound="----WebKitFormBoundaryAtKqfnKiF0dX7jp6", curr=None)
 
       for
-        s <- awaitForm(state, Chunk.empty).collect("bad state"){ case s: HttpState.AwaitForm => s }
-        form <- awaitForm(s, Chunk.fromArray(form2)).collect("bad state"){ case HttpState.MsgDone(_, body: BodyForm) => body.x }
+        s <- awaitForm(state, Array.empty).collect("bad state"){ case s: HttpState.AwaitForm => s }
+        form <- awaitForm(s, form2).collect("bad state"){ case HttpState.MsgDone(_, body: BodyForm) => body.x }
         components =
           form.collect{
             case FormData.Param("component", c) => String(c.toArray, "utf8")
@@ -168,14 +168,14 @@ object FormSpec extends DefaultRunnableSpec:
           |------WebKitFormBoundarymLsm7T4fqzAYLseD--"""
       ).stripMargin.getBytes("utf8").nn
 
-      val state: HttpState.AwaitForm = HttpState.AwaitForm(meta=MetaData("POST", "", Map.empty), body=Chunk.empty, form=Nil, bound="----WebKitFormBoundarymLsm7T4fqzAYLseD", curr=None)
+      val state: HttpState.AwaitForm = HttpState.AwaitForm(meta=MetaData("POST", "", Map.empty), body=Array.empty, form=Nil, bound="----WebKitFormBoundarymLsm7T4fqzAYLseD", curr=None)
 
       for
-        s1 <- awaitForm(state, Chunk.fromArray(form1)).collect("bad state"){ case s: HttpState.AwaitForm => s }
-        s2 <- awaitForm(s1, Chunk.fromArray(form2)).collect("bad state"){ case s: HttpState.AwaitForm => s }
-        s3 <- awaitForm(s2, Chunk.fromArray(form3)).collect("bad state"){ case s: HttpState.AwaitForm => s }
-        s4 <- awaitForm(s3, Chunk.fromArray(form4)).collect("bad state"){ case s: HttpState.AwaitForm => s }
-        form <- awaitForm(s4, Chunk.fromArray(form5)).collect("bad state"){ case HttpState.MsgDone(_, body: BodyForm) => body.x }
+        s1 <- awaitForm(state, form1).collect("bad state"){ case s: HttpState.AwaitForm => s }
+        s2 <- awaitForm(s1, form2).collect("bad state"){ case s: HttpState.AwaitForm => s }
+        s3 <- awaitForm(s2, form3).collect("bad state"){ case s: HttpState.AwaitForm => s }
+        s4 <- awaitForm(s3, form4).collect("bad state"){ case s: HttpState.AwaitForm => s }
+        form <- awaitForm(s4, form5).collect("bad state"){ case HttpState.MsgDone(_, body: BodyForm) => body.x }
         components =
           form.collect{
             case FormData.Param("component", c) => String(c.toArray, "utf8")
@@ -187,32 +187,39 @@ object FormSpec extends DefaultRunnableSpec:
     },
 
     testM("boundary devided") {
-      val form1 = (
+      val form = (
        """|------WebKitFormBoundaryAtKqfnKiF0dX7jp6
           |Content-Disposition: form-data; name="component"
           |
           |Data_data_1
-          |------WebKitFormBoun"""
-      ).stripMargin.getBytes("utf8").nn
-
-      val form2 = (
-       """daryAtKqfnKiF0dX7jp6
+          |------WebKitFormBoundaryAtKqfnKiF0dX7jp6
+          |Content-Disposition: form-data; name="file"; filename="some_file_name.txt"
+          |Content-Type: application/octet-stream
+          |
+          |abc
+          |def
+          |------WebKitFormBoundaryAtKqfnKiF0dX7jp6
           |Content-Disposition: form-data; name="component"
           |
           |2_data_Data
           |------WebKitFormBoundaryAtKqfnKiF0dX7jp6--"""
       ).stripMargin.getBytes("utf8").nn
 
-      val state: HttpState.AwaitForm = HttpState.AwaitForm(meta=MetaData("POST", "", Map.empty), body=Chunk.fromArray(form1), form=Nil, bound="----WebKitFormBoundaryAtKqfnKiF0dX7jp6", curr=None)
-
-      for
-        s <- awaitForm(state, Chunk.empty).collect("bad state"){ case s: HttpState.AwaitForm => s }
-        form <- awaitForm(s, Chunk.fromArray(form2)).collect("bad state"){ case HttpState.MsgDone(_, body: BodyForm) => body.x }
-        components =
-          form.collect{
-            case FormData.Param("component", c) => String(c.toArray, "utf8")
-          }.toSet
-      yield
+      checkM(Gen.int(0, form.size)) { i =>
+        for
+          (form1, form2) <- IO.succeed(form.splitAt(i))
+          state: HttpState.AwaitForm  = HttpState.AwaitForm(meta=MetaData("POST", "", Map.empty), body=Array.empty, form=Nil, bound="----WebKitFormBoundaryAtKqfnKiF0dX7jp6", curr=None)
+          s1 <- awaitForm(state, form1).collect("bad state"){ case s: HttpState.AwaitForm => s }
+          parsedForm <- awaitForm(s1, form2).collect("bad state"){ case HttpState.MsgDone(_, body: BodyForm) => body.x }
+          components =
+            parsedForm.collect{
+              case FormData.Param("component", c) => String(c.toArray, "utf8")
+            }.toSet
+          f <- parsedForm.collectFirst{ case FormData.File("file", p) => Files.readAllBytes(p).map(x => String(x.toArray)) }.getOrElse(IO.fail("no file"))
+        yield
+          assert(f)(equalTo("abc\r\ndef")) &&
           assert(components)(equalTo(Set("Data_data_1", "2_data_Data")))
+      }
+
     },
   )

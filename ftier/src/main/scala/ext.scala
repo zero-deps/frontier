@@ -31,6 +31,3 @@ inline def unit: Unit = ()
 
 given [A]: CanEqual[None.type, Option[A]] = CanEqual.derived
 given [A, B]: CanEqual[A, A | B] = CanEqual.derived
-
-extension [A: ClassTag](x: Chunk[A])
-  inline def startsWith(that: Chunk[A]): Boolean = x.take(that.size) == that    

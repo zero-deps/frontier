@@ -101,7 +101,7 @@ object HttpState:
 enum HttpState:
   case AwaitHeader(prev: Byte, prevrn: Boolean, data: Chunk[Byte])
   case AwaitBody(meta: MetaData, body: Chunk[Byte], length: Int/*, curr: Int, q: Queue[Chunk[Byte]]*/)
-  case AwaitForm(meta: MetaData, body: Chunk[Byte], form: Seq[FormData], bound: String, curr: Option[FormData])
+  case AwaitForm(meta: MetaData, body: Array[Byte], form: Seq[FormData], bound: String, curr: Option[FormData])
   case MsgDone(meta: MetaData, body: BodyChunk | BodyForm)
 
 case class MetaData(method: String, url: String, headers: Map[String, String])
@@ -136,7 +136,7 @@ def processChunk(chunk: Chunk[Byte], s: HttpState): ZIO[Blocking, BadReq.type | 
       // state.q.offer(chunk) *> IO.when(newState.curr >= newState.len)(state.q.shutdown) *> ZIO.succeed(newState)
 
     case state: HttpState.AwaitForm =>
-      awaitForm(state, chunk)
+      awaitForm(state, chunk.toArray)
 
     case _: HttpState.MsgDone =>
       processChunk(chunk, HttpState())
@@ -166,7 +166,7 @@ def parseHeader(pos: Int, chunk: Chunk[Byte]): ZIO[Blocking, BadReq.type | Excep
       (if body.length >= len then
         bound match
           case Some(bound) =>
-            awaitForm(HttpState.AwaitForm(meta, body, Nil, bound, None), Chunk.empty).collect(BadReq){
+            awaitForm(HttpState.AwaitForm(meta, body.toArray, Nil, bound, None), Array.empty).collect(BadReq){
               case s: HttpState.MsgDone => s
             }
           case None =>
@@ -174,7 +174,7 @@ def parseHeader(pos: Int, chunk: Chunk[Byte]): ZIO[Blocking, BadReq.type | Excep
       else
         bound match
           case Some(bound) =>
-            IO.succeed(HttpState.AwaitForm(meta, body, Nil, bound, None))
+            IO.succeed(HttpState.AwaitForm(meta, body.toArray, Nil, bound, None))
           case None =>
             IO.succeed(HttpState.AwaitBody(meta, body, len))): ZIO[Blocking, BadReq.type | Exception, HttpState]
   yield s
