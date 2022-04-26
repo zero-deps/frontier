@@ -6,7 +6,7 @@ Fast, efficient, pure-functional, effect-free WebSocket, HTTP and UDP server, HT
 
 ## benchmark
 
-         | cnt/s | 99th pct
--------- | ----- | --------
-frontier |   300 |      132
-http4s   |   300 |      176
+|          | cnt/s | 99th pct |
+| -------- | -----:| --------:|
+| frontier |   300 |      132 |
+| http4s   |   300 |      176 |
