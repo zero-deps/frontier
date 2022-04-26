@@ -31,9 +31,9 @@ case class WsContextData(
 type WsContext = Has[WsContextData]
 
 object Ws {
-  def req: ZIO[WsContext, Nothing, Request] = ZIO.access(_.get.req)
-  def send(msg: Msg): ZIO[WsContext, Nothing, Unit] = ZIO.accessM(_.get.send(msg))
-  def close(status: CloseStatus = CLOSE_NORMAL): ZIO[WsContext, Nothing, Unit] = ZIO.accessM(_.get.sendClose(status).orDie)
+  def req: URIO[WsContext, Request] = ZIO.access(_.get.req)
+  def send(msg: Msg): URIO[WsContext, Unit] = ZIO.accessM(_.get.send(msg))
+  def close(status: CloseStatus = CLOSE_NORMAL): URIO[WsContext, Unit] = ZIO.accessM(_.get.sendClose(status).orDie)
 }
 
 def getNum(from: Int, size: Int, chunk: Chunk[Byte]): Option[Long] = {
@@ -148,7 +148,9 @@ case class UpgradeRequest(req: Request, key: String)
 
 object UpgradeRequest:
   def unapply(req: Request): Option[UpgradeRequest] =
-    req.headers.get("Sec-WebSocket-Key").map(UpgradeRequest(req, _))
+    req.headers.get("Sec-WebSocket-Key").orElse(
+      req.headers.get("sec-websocket-key")
+    ).map(UpgradeRequest(req, _))
 
 def upgrade(req: UpgradeRequest): UIO[Response] = upgrade(req.key)
 
