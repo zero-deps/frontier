@@ -21,12 +21,12 @@ case class Request
   lazy val query: String = url1.lift(1).getOrElse("")
   
   lazy val Host: Host =
-    headers.getOrElse("Host", "").split(':').toList match
+    getHeader("Host").getOrElse("").split(':').toList match
       case name :: Nil => http.Host(name)
       case name :: port :: Nil => http.Host(name, Some(port))
       case _ => http.Host("")
-  lazy val Origin = headers.get("Origin")
-  lazy val `If-None-Match` = headers.get("If-None-Match")
+  lazy val Origin = getHeader("Origin")
+  lazy val `If-None-Match` = getHeader("If-None-Match")
   
   def paramValues(x: String): List[String] = params.collect{ case (`x`, v) => decode(v) }
   def param(x: String): Option[String] = params.collectFirst{ case (`x`, v) => v }
@@ -55,12 +55,15 @@ case class Request
   
   lazy val cookies: UIO[Map[String, String]] =
     IO.succeed(_cookies)
+
+  def getHeader(name: String): Option[String] = 
+    headers.get(name).orElse(headers.get(name.toLowerCase.nn))
   
   def cookie(name: String): UIO[Option[String]] =
     cookies.map(_.get(name))
   
   lazy val _cookies: Map[String, String] =
-    headers.get("Cookie").map(
+    getHeader("Cookie").map(
       _.split("; ").nn.view.map(_.nn.split('=').nn).collect{
         case Array(k, v) => (k.nn, v.nn)
       }.toMap
@@ -146,6 +149,7 @@ def parseHeader(pos: Int, chunk: Chunk[Byte]): ZIO[Blocking, BadReq.type | Excep
     (header, body) <- IO.succeed(chunk.splitAt(pos + 1))
     lines <- IO.succeed(String(header.toArray).split("\r\n").nn.toVector)
     headers <- IO.succeed(lines.drop(1).map(_.nn.split(": ").nn).collect{ case Array(h, k) => (h.nn, k.nn) }.toMap)
+    headersLowerCase = headers.map{ case (k, v) => k.toLowerCase.nn -> v }  
     line1 <- IO.succeed(lines.headOption.getOrElse("").nn)
     meta <-
       line1.split(' ').toList match
@@ -154,10 +158,10 @@ def parseHeader(pos: Int, chunk: Chunk[Byte]): ZIO[Blocking, BadReq.type | Excep
     // queue    <- Queue.bounded[Chunk[Byte]](100)
     // _        <- queue.offer(body)
     // stream   <- IO.succeed(Stream.fromQueueWithShutdown(queue))
-    len <- headers.get("Content-Length").map(h => IO.fromOption(h.toIntOption).orElseFail(BadReq)).getOrElse(IO.succeed(0))
+    len <- headersLowerCase.get("content-length").map(h => IO.fromOption(h.toIntOption).orElseFail(BadReq)).getOrElse(IO.succeed(0))
     bound <-
       IO.effectTotal(
-        headers.get("Content-Type").flatMap(_.split("multipart/form-data; boundary=") match
+        headersLowerCase.get("content-type").flatMap(_.split("multipart/form-data; boundary=") match
           case Array("", b) => Some(b.nn)
           case _ => None
         )

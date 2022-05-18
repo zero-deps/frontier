@@ -148,9 +148,7 @@ case class UpgradeRequest(req: Request, key: String)
 
 object UpgradeRequest:
   def unapply(req: Request): Option[UpgradeRequest] =
-    req.headers.get("Sec-WebSocket-Key").orElse(
-      req.headers.get("sec-websocket-key")
-    ).map(UpgradeRequest(req, _))
+    req.getHeader("Sec-WebSocket-Key").map(UpgradeRequest(req, _))
 
 def upgrade(req: UpgradeRequest): UIO[Response] = upgrade(req.key)
 
