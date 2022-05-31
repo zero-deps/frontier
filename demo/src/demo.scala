@@ -14,7 +14,7 @@ val app =
 val httpHandler: HttpHandler[ZEnv] =
   case UpgradeRequest(r) if r.req.path == "/wsecho" =>
     IO.succeed(WsResp(r, wsHandler))
-  case req@ Post("/echo") =>
+  case req@ Post(Root / "echo") =>
     IO.succeed(Response(200, Nil, BodyChunk(Chunk.fromArray(req.bodyAsBytes))))
   case _ =>
     IO.succeed(Response.empty(404))
