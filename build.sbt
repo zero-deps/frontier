@@ -1,14 +1,13 @@
 lazy val `ftier-root` = project
   .in(file("."))
-  .aggregate(ftier, demo, benchmark)
+  .aggregate(ftier, tg, demo, benchmark)
 
 lazy val ftier = project
   .in(file("ftier"))
   .settings(
     scalaVersion := "3.1.3-RC4"
   , libraryDependencies ++= Seq(
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.13.1"
-    , "dev.zio" %% "zio-test-sbt" % "1.0.14" % Test
+      "dev.zio" %% "zio-test-sbt" % "1.0.14" % Test
     )
   , testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
   , scalacOptions ++= Seq(
@@ -20,6 +19,20 @@ lazy val ftier = project
   )
   .dependsOn(zio_nio)
   .aggregate(zio_nio, zio_nio_core)
+
+lazy val tg = project
+  .in(file("tg"))
+  .settings(
+    scalaVersion := "3.1.3-RC4"
+  , libraryDependencies ++= Seq(
+      "dev.zio" %% "zio-json" % "0.2.0-M4"
+    )
+  , scalacOptions ++= Seq(
+      "-language:strictEquality"
+    , "-Yexplicit-nulls"
+    , "release", "18"
+    )
+  ).dependsOn(ftier)
 
 lazy val zio_nio = project
   .in(file("deps/zio-nio/nio"))

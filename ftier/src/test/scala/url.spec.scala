@@ -8,7 +8,7 @@ object UrlSpec extends DefaultRunnableSpec:
     test("/") {
       assert("/" match
         case "/" => true
-        case _ => false
+        // case _ => false
       )(equalTo(true))
     }
   , test("/a") {

@@ -37,12 +37,12 @@ def processHttp[R <: Has[?]](ch: SocketChannel, h: HttpHandler[R])(protocol: Pro
                   , msg => for
                       bb <- write(msg).orDie
                       _ <- IO.whenM(ch.isConnected){ ch.write(bb) }.orDie
-                    yield unit
+                    yield ()
                   , status => for
                       bb <- write(Close(status)).orDie
                       _ <- IO.whenM(ch.isConnected){ ch.write(bb) }.orDie
                       _ <- IO.whenM(ch.isConnected){ ch.close }.orDie
-                    yield unit                
+                    yield ()                
                   , java.util.UUID.randomUUID().toString
                   ),
                   x.handler
@@ -74,11 +74,11 @@ def processHttp[R <: Has[?]](ch: SocketChannel, h: HttpHandler[R])(protocol: Pro
               _ <- ch.writeChunk(Chunk.fromArray("\r\n".getBytes("ascii").nn))
               _ <- ch.writeChunk(x)
               _ <- ch.writeChunk(Chunk.fromArray("\r\n".getBytes("ascii").nn))
-            yield unit
+            yield ()
           )
         _ <- ch.writeChunk(Chunk.fromArray("0\r\n\r\n".getBytes("ascii").nn))
         _ <- ch.close
-      yield unit
+      yield ()
     
     case (p, None) => IO.unit
   }.map(_._1).flatMap{
@@ -114,7 +114,7 @@ def httpProtocol[R <: Has[?]](ch: SocketChannel, h: HttpHandler[R], state: Ref[P
         case p: Protocol.Http => processHttp(ch, h)(p, chunk)
         case p: Protocol.Ws[R] => processWs(ch)(p, chunk)
     _ <- state.set(data)
-  yield unit
+  yield ()
 
 def bind[R <: Has[?]](addr: SocketAddress, h: HttpHandler[R], conf: ServerConf = ServerConf.default): RIO[R & Blocking & Clock, Unit] =
   for
@@ -124,4 +124,4 @@ def bind[R <: Has[?]](addr: SocketAddress, h: HttpHandler[R], conf: ServerConf =
         state <- Ref.make[Protocol](Protocol.http)
       yield httpProtocol(ch, h, state)(_).provide(r)
     )
-  yield unit
+  yield ()
