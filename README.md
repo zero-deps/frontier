@@ -4,6 +4,13 @@
 
 Fast, efficient, pure-functional, effect-free WebSocket, HTTP and UDP server, HTTP client and Telegram bot.
 
+## demo
+
+```
+sbt 'project demo' run
+curl -X POST -d 'hi' http://localhost:9012/echo
+```
+
 ## benchmark
 
 |          | cnt/s | 99th pct |
