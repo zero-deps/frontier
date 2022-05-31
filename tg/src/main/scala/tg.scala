@@ -72,7 +72,6 @@ object tg:
     given JsonDecoder[Message] = DeriveJsonDecoder.gen
     given JsonDecoder[InlineQuery] = DeriveJsonDecoder.gen
     given JsonDecoder[UpdateSchema] = DeriveJsonDecoder.gen
-    given CanEqual[None.type, Option[InlineQuery]] = CanEqual.derived
 
     def find[R, E](xs: Chunk[Byte])(f: Update => ZIO[R, E, Chunk[Byte]]): ZIO[R, E | String, Chunk[Byte]] =
       for
