@@ -100,7 +100,7 @@ def read(opcode: Int, payload: Chunk[Byte], fin: Boolean, fragmentsOpcode: Optio
 
 def write(msg: Msg): Task[ByteBuffer] = {
   msg match {
-    case Text(v, _)    => message(0x1, Chunk.fromArray(v.getBytes("UTF-8").nn))
+    case Text(v, _)    => message(0x1, Chunk.fromArray(v.getBytes("utf8").nn))
     case Binary(v, _)  => message(0x2, v)
     case Close(status) =>
       for
@@ -157,7 +157,7 @@ def upgrade(key: String): UIO[Response] = {
   import java.security.MessageDigest
   val crypt = MessageDigest.getInstance("SHA-1").nn
   crypt.reset()
-  crypt.update((key + guid).getBytes("UTF-8").nn)
+  crypt.update((key + guid).getBytes("utf8").nn)
   val sha1 = crypt.digest()
   val accept = String(Base64.getEncoder().nn.encode(sha1))
   IO.succeed(Response(101, Seq(
