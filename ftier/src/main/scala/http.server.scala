@@ -36,11 +36,11 @@ def processHttp[R](ch: SocketChannel, h: HttpHandler[R])(protocol: Protocol.Http
                     req
                   , msg => for
                       bb <- write(msg).orDie
-                      _ <- ZIO.whenZIO(ch.isConnected){ ch.write(bb) }.orDie
+                      _ <- ZIO.whenZIO(ch.isConnected){ ch.flatMapNonBlocking(_.write(bb)) }.orDie
                     yield ()
                   , status => for
                       bb <- write(Close(status)).orDie
-                      _ <- ZIO.whenZIO(ch.isConnected){ ch.write(bb) }.orDie
+                      _ <- ZIO.whenZIO(ch.isConnected){ ch.flatMapNonBlocking(_.write(bb)) }.orDie
                       _ <- ZIO.whenZIO(ch.isConnected){ ch.close }.orDie
                     yield ()                
                   , java.util.UUID.randomUUID().toString
@@ -59,26 +59,28 @@ def processHttp[R](ch: SocketChannel, h: HttpHandler[R])(protocol: Protocol.Http
     case e: Throwable => ZIO.fail(e)
   }.tap{
     case (p, Some(Response(code@ 101, headers, _))) =>
-      ch.writeChunk(buildRe(code, headers))
+      ch.flatMapNonBlocking(_.writeChunk(buildRe(code, headers)))
 
     case (p, Some(Response(code, headers, BodyChunk(body)))) =>
-      ch.writeChunk(buildRe(code, headers)) *> ch.writeChunk(body) *> ch.close
+      ch.flatMapNonBlocking(c => c.writeChunk(buildRe(code, headers)) *> c.writeChunk(body)) *> ch.close
     
     case (p, Some(Response(code, headers, BodyStream(body)))) =>
-      for
-        _ <- ch.writeChunk(buildRe(code, headers :+ ("Transfer-Encoding" -> "chunked")))
-        _ <-
-          body.runForeachChunk(x =>
-            for
-              _ <- ch.writeChunk(Chunk.fromArray(x.size.toHexString.getBytes("ascii").nn))
-              _ <- ch.writeChunk(Chunk.fromArray("\r\n".getBytes("ascii").nn))
-              _ <- ch.writeChunk(x)
-              _ <- ch.writeChunk(Chunk.fromArray("\r\n".getBytes("ascii").nn))
-            yield ()
-          )
-        _ <- ch.writeChunk(Chunk.fromArray("0\r\n\r\n".getBytes("ascii").nn))
-        _ <- ch.close
-      yield ()
+      ch.flatMapNonBlocking(c =>
+        for
+          _ <- c.writeChunk(buildRe(code, headers :+ ("Transfer-Encoding" -> "chunked")))
+          _ <-
+            body.runForeachChunk(x =>
+              for
+                _ <- c.writeChunk(Chunk.fromArray(x.size.toHexString.getBytes("ascii").nn))
+                _ <- c.writeChunk(Chunk.fromArray("\r\n".getBytes("ascii").nn))
+                _ <- c.writeChunk(x)
+                _ <- c.writeChunk(Chunk.fromArray("\r\n".getBytes("ascii").nn))
+              yield ()
+            )
+          _ <- c.writeChunk(Chunk.fromArray("0\r\n\r\n".getBytes("ascii").nn))
+          _ <- ch.close
+        yield ()
+      )
     
     case (p, None) => ZIO.unit
   }.map(_._1).flatMap{
@@ -122,6 +124,6 @@ def bind[R](addr: SocketAddress, h: HttpHandler[R], conf: ServerConf = ServerCon
     _ <- tcp.bind(addr, conf.workers, ch =>
       for
         state <- Ref.make[Protocol](Protocol.http)
-      yield httpProtocol(ch, h, state)(_).provideService(r)
+      yield httpProtocol(ch, h, state)(_).provideEnvironment(r)
     )
   yield ()

@@ -1,9 +1,9 @@
 package ftier
 package tcp
 
-import java.nio.channels.{ServerSocketChannel as JServerSocketChannel, SocketChannel as JSocketChannel, CancelledKeyException, ClosedChannelException}
+import java.nio.channels.{CancelledKeyException, ClosedChannelException}
 import java.io.IOException
-import zio.*, duration.*, nio.*, channels.*
+import zio.*, nio.*, channels.*
 
 import ext.{*, given}
 
@@ -13,10 +13,10 @@ type TcpInit = SocketChannel => Task[TcpHandler]
 type TcpHandler = Chunk[Byte] => Task[Unit]
 
 def getSocketChannel(key: SelectionKey): Task[SocketChannel] =
-  key.channel flatMap (ch => ZIO.attempt(ch.asInstanceOf[JSocketChannel])) flatMap SocketChannel.fromJava
+  ZIO.attempt(key.channel.asInstanceOf[SocketChannel])
 
 def getServerSocketChannel(key: SelectionKey): Task[ServerSocketChannel] =
-  key.channel flatMap (ch => ZIO.attempt(ch.asInstanceOf[JServerSocketChannel])) flatMap ServerSocketChannel.fromJava
+  ZIO.attempt(key.channel.asInstanceOf[ServerSocketChannel])
 
 def select[R](selector: Selector, f: SelectionKey => RIO[R, Any]): RIO[R, Unit] =
   for {
@@ -24,13 +24,15 @@ def select[R](selector: Selector, f: SelectionKey => RIO[R, Any]): RIO[R, Unit] 
     keys <- selector.selectedKeys
     _ <-
       ZIO.foreach(keys){ key =>
-        Managed.acquireReleaseWith(ZIO.succeed(key))(selector.removeKey(_).ignore).use{ k =>
-          ZIO.whenZIO(k.isValid) {
-            f(k).catchSome{
-              case x: IOException if x.getMessage == "Broken pipe" =>
-                ZIO.succeed(println("IOException: Broken pipe"))
-            }.catchAllCause{ cause =>
-              ZIO.succeed(println(s"Key error: ${cause.prettyPrint}"))
+        ZIO.scoped {
+          ZIO.acquireReleaseWith(ZIO.succeed(key))(selector.removeKey(_).ignore){ k =>
+            ZIO.whenZIO(k.isValid) {
+              f(k).catchSome{
+                case x: IOException if x.getMessage == "Broken pipe" =>
+                  ZIO.succeed(println("IOException: Broken pipe"))
+              }.catchAllCause{ cause =>
+                ZIO.succeed(println(s"Key error: ${cause.prettyPrint}"))
+              }
             }
           }
         }
@@ -65,7 +67,7 @@ def bind(
 ): RIO[Clock, Unit] =
   for {
     _ <- serverChannel.configureBlocking(false)
-    _ <- serverChannel.bind(addr)
+    _ <- serverChannel.bind(Some(addr))
     _ <- serverChannel.register(accessSelector, SelectionKey.Operation.Accept)
     worker <- Ref.make[Int](0)
     afork <-

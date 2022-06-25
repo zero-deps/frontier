@@ -35,7 +35,7 @@ object Udp {
     def connect(to: SocketAddress): ZIO[Scope, Nothing, ChannelWrite]
   }
 
-  def live(mtu: Int): ZLayer[ZEnv, Nothing, Udp] = ZLayer.fromFunction{ env =>
+  def live(mtu: Int): Layer[Nothing, Udp] = ZLayer.fromFunction{ env =>
     new Udp.Service {
       def bind(addr: SocketAddress)(connectionHandler: ChannelRead => IO[Nothing, Unit]): ZIO[Scope, Nothing, Bind] =
         DatagramChannel
@@ -95,7 +95,7 @@ object Udp {
 }
 
 def bind[R <: Udp](localAddr: SocketAddress)(connectionHandler: ChannelRead => ZIO[R, Nothing, Unit]): ZIO[R & Scope, Nothing, Bind] =
-  ZIO.environment[R].flatMap(env => env.get[Udp.Service].bind(localAddr)(conn => connectionHandler(conn).provideService(env)))
+  ZIO.environment[R].flatMap(env => env.get[Udp.Service].bind(localAddr)(conn => connectionHandler(conn).provideLayer(env)))
 
 def connect(to: SocketAddress): ZIO[Udp & Scope, Nothing, ChannelWrite] =
   ZIO.environment[Udp].flatMap(_.get.connect(to))
