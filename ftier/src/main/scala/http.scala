@@ -54,7 +54,7 @@ case class Request
   private def decode(x: String): String = java.net.URLDecoder.decode(x, "utf8").nn
   
   lazy val cookies: UIO[Map[String, String]] =
-    IO.succeed(_cookies)
+    ZIO.succeed(_cookies)
 
   def getHeader(name: String): Option[String] = 
     headers.get(name).orElse(headers.get(name.toLowerCase.nn))
@@ -127,15 +127,15 @@ def processChunk(chunk: Chunk[Byte], s: HttpState): ZIO[Blocking, BadReq.type | 
         prev = b
         found
       }, 0) match
-        case -1  => IO.succeed(HttpState.AwaitHeader(prev, prevrn, state.data ++ chunk))
+        case -1  => ZIO.succeed(HttpState.AwaitHeader(prev, prevrn, state.data ++ chunk))
         case pos => parseHeader(pos + state.data.length, state.data ++ chunk)
     
     case state: HttpState.AwaitBody =>
       val body = state.body ++ chunk
       if body.length >= state.length then
-        IO.succeed(HttpState.MsgDone(state.meta, BodyChunk(body)))
+        ZIO.succeed(HttpState.MsgDone(state.meta, BodyChunk(body)))
       else
-        IO.succeed(state.copy(body = body))
+        ZIO.succeed(state.copy(body = body))
       // state.q.offer(chunk) *> IO.when(newState.curr >= newState.len)(state.q.shutdown) *> ZIO.succeed(newState)
 
     case state: HttpState.AwaitForm =>
@@ -146,21 +146,21 @@ def processChunk(chunk: Chunk[Byte], s: HttpState): ZIO[Blocking, BadReq.type | 
 
 def parseHeader(pos: Int, chunk: Chunk[Byte]): ZIO[Blocking, BadReq.type | Exception, HttpState] =
   for
-    (header, body) <- IO.succeed(chunk.splitAt(pos + 1))
-    lines <- IO.succeed(String(header.toArray).split("\r\n").nn.toVector)
-    headers <- IO.succeed(lines.drop(1).map(_.nn.split(": ").nn).collect{ case Array(h, k) => (h.nn, k.nn) }.toMap)
+    (header, body) <- ZIO.succeed(chunk.splitAt(pos + 1))
+    lines <- ZIO.succeed(String(header.toArray).split("\r\n").nn.toVector)
+    headers <- ZIO.succeed(lines.drop(1).map(_.nn.split(": ").nn).collect{ case Array(h, k) => (h.nn, k.nn) }.toMap)
     headersLowerCase = headers.map{ case (k, v) => k.toLowerCase.nn -> v }  
-    line1 <- IO.succeed(lines.headOption.getOrElse("").nn)
+    line1 <- ZIO.succeed(lines.headOption.getOrElse("").nn)
     meta <-
       line1.split(' ').toList match
-        case m :: u :: _ => IO.succeed(MetaData(method=m, url=u, headers))
-        case _ => IO.fail(BadReq)
+        case m :: u :: _ => ZIO.succeed(MetaData(method=m, url=u, headers))
+        case _ => ZIO.fail(BadReq)
     // queue    <- Queue.bounded[Chunk[Byte]](100)
     // _        <- queue.offer(body)
     // stream   <- IO.succeed(Stream.fromQueueWithShutdown(queue))
-    len <- headersLowerCase.get("content-length").map(h => IO.fromOption(h.toIntOption).orElseFail(BadReq)).getOrElse(IO.succeed(0))
+    len <- headersLowerCase.get("content-length").map(h => ZIO.fromOption(h.toIntOption).orElseFail(BadReq)).getOrElse(ZIO.succeed(0))
     bound <-
-      IO.effectTotal(
+      ZIO.succeed(
         headersLowerCase.get("content-type").flatMap(_.split("multipart/form-data; boundary=") match
           case Array("", b) => Some(b.nn)
           case _ => None
@@ -174,13 +174,13 @@ def parseHeader(pos: Int, chunk: Chunk[Byte]): ZIO[Blocking, BadReq.type | Excep
               case s: HttpState.MsgDone => s
             }
           case None =>
-            IO.succeed(HttpState.MsgDone(meta, BodyChunk(body)))
+            ZIO.succeed(HttpState.MsgDone(meta, BodyChunk(body)))
       else
         bound match
           case Some(bound) =>
-            IO.succeed(HttpState.AwaitForm(meta, body.toArray, Nil, bound, None))
+            ZIO.succeed(HttpState.AwaitForm(meta, body.toArray, Nil, bound, None))
           case None =>
-            IO.succeed(HttpState.AwaitBody(meta, body, len))): ZIO[Blocking, BadReq.type | Exception, HttpState]
+            ZIO.succeed(HttpState.AwaitBody(meta, body, len))): ZIO[Blocking, BadReq.type | Exception, HttpState]
   yield s
 
 def buildRe(code: Int, headers: Seq[(String, String)]): Chunk[Byte] =
