@@ -1,11 +1,10 @@
 package ftier
 package udp
 
-import zio.*, console.*
-import zio.nio.*, channels.{Channel as _, *}, core.*
+import zio.*
+import zio.nio.*, channels.{Channel as _, *}
 
 import ext.{*, given}
-import zio.managed._
 
 type Host = String
 case class ChannelRead(read: IO[NoAddr.type, Tuple2[Host, Chunk[Byte]]])
@@ -32,13 +31,13 @@ type Udp = Udp.Service
 
 object Udp {
   trait Service {
-    def bind(localAddr: SocketAddress)(connectionHandler: ChannelRead => IO[Nothing, Unit]): Managed[Nothing, Bind]
-    def connect(to: SocketAddress): Managed[Nothing, ChannelWrite]
+    def bind(localAddr: SocketAddress)(connectionHandler: ChannelRead => IO[Nothing, Unit]): ZIO[Scope, Nothing, Bind]
+    def connect(to: SocketAddress): ZIO[Scope, Nothing, ChannelWrite]
   }
 
   def live(mtu: Int): ZLayer[ZEnv, Nothing, Udp] = ZLayer.fromFunction{ env =>
     new Udp.Service {
-      def bind(addr: SocketAddress)(connectionHandler: ChannelRead => IO[Nothing, Unit]): Managed[Nothing, Bind] =
+      def bind(addr: SocketAddress)(connectionHandler: ChannelRead => IO[Nothing, Unit]): ZIO[Scope, Nothing, Bind] =
         DatagramChannel
           .bind(Some(addr))
           .orDie
@@ -81,7 +80,7 @@ object Udp {
           }
           // .provide(env)
 
-      def connect(to: SocketAddress): Managed[Nothing, ChannelWrite] =
+      def connect(to: SocketAddress): ZIO[Scope, Nothing, ChannelWrite] =
         DatagramChannel
           .connect(to)
           .mapZIO(
@@ -95,9 +94,8 @@ object Udp {
   }
 }
 
-def bind[R <: Udp](localAddr: SocketAddress)(connectionHandler: ChannelRead => ZIO[R, Nothing, Unit]): ZManaged[R, Nothing, Bind] = {
-  ZManaged.environment[R].flatMap(env => env.get[Udp.Service].bind(localAddr)(conn => connectionHandler(conn).provideService(env)))
-}
+def bind[R <: Udp](localAddr: SocketAddress)(connectionHandler: ChannelRead => ZIO[R, Nothing, Unit]): ZIO[R & Scope, Nothing, Bind] =
+  ZIO.environment[R].flatMap(env => env.get[Udp.Service].bind(localAddr)(conn => connectionHandler(conn).provideService(env)))
 
-def connect(to: SocketAddress): ZManaged[Udp, Nothing, ChannelWrite] =
-  ZManaged.environment[Udp].flatMap(_.get.connect(to))
+def connect(to: SocketAddress): ZIO[Udp & Scope, Nothing, ChannelWrite] =
+  ZIO.environment[Udp].flatMap(_.get.connect(to))

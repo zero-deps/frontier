@@ -1,7 +1,7 @@
 package ftier
 package ws
 
-import zio.*, nio.*, core.*, stream.*
+import zio.*, nio.*, stream.*
 
 import http.*
 import ext.{*, given}

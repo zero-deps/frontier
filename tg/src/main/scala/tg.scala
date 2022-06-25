@@ -8,7 +8,7 @@ import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
-import zio.*, clock.*, json.*, blocking.*
+import zio.*, json.*
 import zio.Clock.currentTime
 
 object tg:
@@ -49,7 +49,7 @@ object tg:
     yield ()
 
   object push:
-    def sendMessage(token: String, text: String, telegramId: ChatId, muted: Boolean): URIO[Blocking, Unit] =
+    def sendMessage(token: String, text: String, telegramId: ChatId, muted: Boolean): UIO[Unit] =
       (for
         url <- ZIO.succeed(s"https://api.telegram.org/bot$token/sendMessage")
         payload <- ZIO.attempt(s"chat_id=$telegramId&disable_notification=$muted&text="+URLEncoder.encode(text, "utf8")).orDie

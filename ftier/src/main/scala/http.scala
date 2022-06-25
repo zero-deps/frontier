@@ -4,7 +4,7 @@ package http
 import java.io.IOException
 import scala.util.chaining.*
 import scala.annotation.tailrec
-import zio.*, stream.*, blocking.*
+import zio.*, stream.*
 
 import ext.given
 
@@ -111,7 +111,7 @@ case class MetaData(method: String, url: String, headers: Map[String, String])
 
 object BadReq
 
-def processChunk(chunk: Chunk[Byte], s: HttpState): ZIO[Blocking, BadReq.type | Exception, HttpState] =
+def processChunk(chunk: Chunk[Byte], s: HttpState): IO[BadReq.type | Exception, HttpState] =
   s match
     case state: HttpState.AwaitHeader =>
       var prev = state.prev
@@ -144,7 +144,7 @@ def processChunk(chunk: Chunk[Byte], s: HttpState): ZIO[Blocking, BadReq.type | 
     case _: HttpState.MsgDone =>
       processChunk(chunk, HttpState())
 
-def parseHeader(pos: Int, chunk: Chunk[Byte]): ZIO[Blocking, BadReq.type | Exception, HttpState] =
+def parseHeader(pos: Int, chunk: Chunk[Byte]): IO[BadReq.type | Exception, HttpState] =
   for
     (header, body) <- ZIO.succeed(chunk.splitAt(pos + 1))
     lines <- ZIO.succeed(String(header.toArray).split("\r\n").nn.toVector)
@@ -180,7 +180,7 @@ def parseHeader(pos: Int, chunk: Chunk[Byte]): ZIO[Blocking, BadReq.type | Excep
           case Some(bound) =>
             ZIO.succeed(HttpState.AwaitForm(meta, body.toArray, Nil, bound, None))
           case None =>
-            ZIO.succeed(HttpState.AwaitBody(meta, body, len))): ZIO[Blocking, BadReq.type | Exception, HttpState]
+            ZIO.succeed(HttpState.AwaitBody(meta, body, len))): IO[BadReq.type | Exception, HttpState]
   yield s
 
 def buildRe(code: Int, headers: Seq[(String, String)]): Chunk[Byte] =
