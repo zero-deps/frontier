@@ -1,17 +1,17 @@
 package ftier.demo
 
 import ftier.*, ws.*, http.*, server.*
-import zio.*, nio.*, core.*
+import zio.*, nio.*
 
 val app =
+  val addr = SocketAddress.fromJava(java.net.InetSocketAddress(9012))
   for
-    addr <- SocketAddress.inetSocketAddress(9012).orDie
     _ <- bind(addr, httpHandler, ServerConf(workers=10))
   yield ()
 
-@main def run(): Unit = Runtime.default.unsafeRun(app)
+@main def run(): Unit = Unsafe.unsafe(Runtime.default.unsafe.run(app))
 
-val httpHandler: HttpHandler[ZEnv] =
+val httpHandler: HttpHandler[Any] =
   case UpgradeRequest(r) if r.req.path == "/wsecho" =>
     ZIO.succeed(WsResp(r, wsHandler))
   case req@ Post(Root / "echo") =>
@@ -19,7 +19,7 @@ val httpHandler: HttpHandler[ZEnv] =
   case _ =>
     ZIO.succeed(Response.empty(404))
 
-val wsHandler: WsHandler[WsContext & ZEnv] =
+val wsHandler: WsHandler[WsContext] =
   case msg: Binary => Ws.send(msg)
   case _: Close => Ws.close()
   case _ => ZIO.unit

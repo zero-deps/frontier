@@ -64,7 +64,7 @@ def bind(
 , accessSelector: Selector
 , readSelectors: Vector[Selector]
 , init: TcpInit
-): RIO[Clock, Unit] =
+): Task[Unit] =
   for {
     _ <- serverChannel.configureBlocking(false)
     _ <- serverChannel.bind(Some(addr))
@@ -119,7 +119,7 @@ def bind(
   addr: SocketAddress
 , workers: Int
 , init: TcpInit
-): RIO[Clock, Unit] =
+): Task[Unit] =
   ZIO.scoped {
     ServerSocketChannel.open.flatMap{ serverChannel =>
       ZIO.scoped {

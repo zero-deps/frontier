@@ -1,6 +1,6 @@
 lazy val `ftier-root` = project
   .in(file("."))
-  .aggregate(ftier)
+  .aggregate(ftier, demo)
   // .aggregate(ftier, tg, demo, benchmark)
 
 lazy val ftier = project
