@@ -22,19 +22,17 @@ val CLOSED_NO_STATUS: CloseStatus = 1005
 case class WsHeader(fin: Boolean, opcode: Int, mask: Boolean, maskN: Int, size: Int)
 case class WsState(h: Option[WsHeader], data: Chunk[Byte], fragmentsOpcode: Option[Int])
 
-case class WsContextData(
-    req: Request
+case class WsContext
+  ( req: Request
   , send: Msg => UIO[Unit]
   , sendClose: CloseStatus => Task[Unit]
   , uuid: String
   )
-type WsContext = WsContextData
 
-object Ws {
-  def req: URIO[WsContext, Request] = ZIO.environment(_.get.req)
+object Ws:
+  def req: URIO[WsContext, Request] = ZIO.serviceWith(_.req)
   def send(msg: Msg): URIO[WsContext, Unit] = ZIO.environmentWithZIO(_.get.send(msg))
   def close(status: CloseStatus = CLOSE_NORMAL): URIO[WsContext, Unit] = ZIO.environmentWithZIO(_.get.sendClose(status).orDie)
-}
 
 def getNum(from: Int, size: Int, chunk: Chunk[Byte]): Option[Long] = {
   if (chunk.length > from + size) {

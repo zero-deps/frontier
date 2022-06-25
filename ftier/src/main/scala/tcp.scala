@@ -46,13 +46,13 @@ def read(buffer: ByteBuffer, key: SelectionKey): Task[(Int, Chunk[Byte])] =
     lastN <-
       (for {
         _ <- buffer.clear
-        n <- channel.read(buffer)
+        n <- channel.flatMapNonBlocking(_.read(buffer))
         _ <- buffer.flip
         a <- buffer.getChunk()
         c <- chunks.get
         _ <- chunks.set(c ++ a)
       } yield if (c.length > size2mb) 0 else n).catchSome{
-        case _: ClosedChannelException                                                         => ZIO.succeed(-1)
+        case _: ClosedChannelException => ZIO.succeed(-1)
         case err: IOException if err.getMessage.toOption.exists(_.contains("Connection reset")) => ZIO.succeed(-1)
       }.repeatWhile(_ > 0)
     chunks <- chunks.get
@@ -68,24 +68,26 @@ def bind(
   for {
     _ <- serverChannel.configureBlocking(false)
     _ <- serverChannel.bind(Some(addr))
-    _ <- serverChannel.register(accessSelector, SelectionKey.Operation.Accept)
+    _ <- serverChannel.register(accessSelector, Set(SelectionKey.Operation.Accept))
     worker <- Ref.make[Int](0)
     afork <-
-      select[Clock](accessSelector, key =>
+      select[Any](accessSelector, key =>
         ZIO.whenZIO(key.isAcceptable: Task[Boolean]){
-          for {
-            server  <- getServerSocketChannel(key)
-            channel <- server.accept
-            channel <- ZIO.fromOption(channel).orElseFail(new CancelledKeyException())
-            _       <- channel.configureBlocking(false)
-            jsocket <- channel.socket
-            _       <- ZIO.attempt(jsocket.setTcpNoDelay(true))
-            n       <- worker.get
-            _       <- worker.set((n + 1) % readSelectors.length)
-            readKey <- channel.register(readSelectors(n), SelectionKey.Operation.Read)
-            handler <- init(channel)
-            _       <- readKey.attach(handler)
-          } yield ()
+          ZIO.scoped {
+            for
+              server  <- getServerSocketChannel(key)
+              channel <- server.flatMapNonBlocking(_.accept)
+              channel <- ZIO.fromOption(channel).orElseFail(new CancelledKeyException())
+              _       <- channel.configureBlocking(false)
+              jsocket <- channel.socket
+              _       <- ZIO.attempt(jsocket.setTcpNoDelay(true))
+              n       <- worker.get
+              _       <- worker.set((n + 1) % readSelectors.length)
+              readKey <- channel.register(readSelectors(n), Set(SelectionKey.Operation.Read))
+              handler <- init(channel)
+              _       <- readKey.attach(Some(handler))
+            yield ()
+          }
         }
       ).forever.orDie.fork
     _ <-
@@ -118,12 +120,18 @@ def bind(
 , workers: Int
 , init: TcpInit
 ): RIO[Clock, Unit] =
-  ServerSocketChannel.open.toManagedWith(_.close.orDie).use{ serverChannel =>
-    Selector.make.toManagedWith(_.close.orDie).use{ accessSelector =>
-      Managed.collectAll(
-        Vector.fill(workers)(Selector.make.toManagedWith(_.close.orDie))
-      ).use{ readSelectors =>
-        bind(addr, serverChannel, accessSelector, readSelectors.to(Vector), init)
+  ZIO.scoped {
+    ServerSocketChannel.open.flatMap{ serverChannel =>
+      ZIO.scoped {
+        Selector.open.flatMap{ accessSelector =>
+          ZIO.scoped {
+            ZIO.collectAll(
+              Vector.fill(workers)(Selector.open)
+            ).flatMap{ readSelectors =>
+              bind(addr, serverChannel, accessSelector, readSelectors.to(Vector), init)
+            }
+          }
+        }
       }
     }
   }

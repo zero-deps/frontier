@@ -9,11 +9,11 @@ import ext.{*, given}
 
 enum Protocol:
   case Http(state: HttpState)
-  case Ws[R](state: WsState, ctx: WsContextData, handler: WsHandler[R])
+  case Ws[R](state: WsState, ctx: WsContext, handler: WsHandler[R])
 
 object Protocol:
   def http: Protocol.Http = Protocol.Http(HttpState())
-  def ws[R](ctx: WsContextData, handler: WsHandler[R]): Protocol.Ws[R] = Protocol.Ws(WsState(None, Chunk.empty, None), ctx, handler)
+  def ws[R](ctx: WsContext, handler: WsHandler[R]): Protocol.Ws[R] = Protocol.Ws(WsState(None, Chunk.empty, None), ctx, handler)
 
 type HttpHandler[R] = Request => RIO[R, Response | WsResp[R]]
 
@@ -32,7 +32,7 @@ def processHttp[R](ch: SocketChannel, h: HttpHandler[R])(protocol: Protocol.Http
             case x: WsResp[R] =>
               val p =
                 Protocol.ws(
-                  WsContextData(
+                  WsContext(
                     req
                   , msg => for
                       bb <- write(msg).orDie

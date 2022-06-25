@@ -145,8 +145,8 @@ def processChunk(chunk: Chunk[Byte], s: HttpState): IO[BadReq.type | Exception, 
       processChunk(chunk, HttpState())
 
 def parseHeader(pos: Int, chunk: Chunk[Byte]): IO[BadReq.type | Exception, HttpState] =
+  val (header, body) = chunk.splitAt(pos + 1)
   for
-    (header, body) <- ZIO.succeed(chunk.splitAt(pos + 1))
     lines <- ZIO.succeed(String(header.toArray).split("\r\n").nn.toVector)
     headers <- ZIO.succeed(lines.drop(1).map(_.nn.split(": ").nn).collect{ case Array(h, k) => (h.nn, k.nn) }.toMap)
     headersLowerCase = headers.map{ case (k, v) => k.toLowerCase.nn -> v }  
