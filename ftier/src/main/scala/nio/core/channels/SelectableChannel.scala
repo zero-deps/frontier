@@ -12,7 +12,7 @@ import java.nio.{ ByteBuffer as JByteBuffer }
 import zio.nio.core.channels.SelectionKey.Operation
 import zio.nio.core.channels.spi.SelectorProvider
 import zio.nio.core.{ Buffer, SocketAddress }
-import zio.{ IO, UIO }
+import zio.*
 
 trait SelectableChannel extends Channel {
   protected val channel: JSelectableChannel

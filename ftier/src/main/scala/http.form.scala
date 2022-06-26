@@ -6,7 +6,7 @@ import java.nio.file.StandardOpenOption
 import java.nio.file.{Files as JFiles, Paths as JPaths}
 import scala.util.chaining.*
 import scala.annotation.tailrec
-import zio.*, stream.*, blocking.*
+import zio.*, stream.*
 import zio.nio.file.Files
 import zio.nio.core.file.Path
 
@@ -20,12 +20,12 @@ enum FormData:
 private val `\r\n\r\n`  = "\r\n\r\n".getBytes.nn
 private val `\r\n`      = "\r\n".getBytes.nn
 
-def awaitForm(state: HttpState.AwaitForm, chunk: Array[Byte]): ZIO[Blocking, BadReq.type | Exception, HttpState] =
+def awaitForm(state: HttpState.AwaitForm, chunk: Array[Byte]): IO[BadReq.type | Exception, HttpState] =
   val `--bound`   = s"--${state.bound}".getBytes.nn
   val `--bound--` = s"--${state.bound}--".getBytes.nn
   readForm(state, chunk, `--bound`, `--bound--`)
 
-def readForm(state: HttpState.AwaitForm, chunk: Array[Byte], `--bound`: Array[Byte], `--bound--`: Array[Byte]): ZIO[Blocking, BadReq.type | Exception, HttpState] =
+def readForm(state: HttpState.AwaitForm, chunk: Array[Byte], `--bound`: Array[Byte], `--bound--`: Array[Byte]): IO[BadReq.type | Exception, HttpState] =
   
   val `\r\n--bound`   = `\r\n` ++ `--bound`
   val data = state.body ++ chunk
@@ -54,7 +54,7 @@ def readForm(state: HttpState.AwaitForm, chunk: Array[Byte], `--bound`: Array[By
                       """Content-Disposition: form-data; name="([^"]+)"""".r.findFirstMatchIn(disp).map(_.group(1)) match
                         case None       => ZIO.fail(BadReq)
                         case Some(name) =>
-                          createField(name, isFile).flatMap[Blocking, BadReq.type | Exception, HttpState]{ field =>
+                          createField(name, isFile).flatMap[Any, BadReq.type | Exception, HttpState]{ field =>
                             val formDataChunk = other.drop(`\r\n\r\n`.size)
                             awaitForm(state.copy(body = Array.empty, curr = Some(field)), formDataChunk)
                           }
@@ -87,7 +87,7 @@ def readForm(state: HttpState.AwaitForm, chunk: Array[Byte], `--bound`: Array[By
                 else awaitForm(s, other.drop(`\r\n`.size))
             yield s1
 
-private def createField(name: String, isFile: Boolean): ZIO[Blocking, Exception, FormData] =
+private def createField(name: String, isFile: Boolean): IO[Exception, FormData] =
   if isFile then
     for
       uuid <- ZIO.succeed(java.util.UUID.randomUUID.toString)
@@ -97,6 +97,6 @@ private def createField(name: String, isFile: Boolean): ZIO[Blocking, Exception,
   else
     ZIO.succeed(FormData.Param(name, Chunk.empty))
 
-private def appendFile(file: FormData.File, value: Array[Byte]): ZIO[Blocking, Exception, Unit] =
+private def appendFile(file: FormData.File, value: Array[Byte]): IO[Exception, Unit] =
   attemptBlocking(JFiles.write(JPaths.get(file.path.toString), value, StandardOpenOption.APPEND)).unit.refineToOrDie[Exception]
 

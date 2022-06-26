@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit
 
 import zio.interop.javaz.*
 import zio.nio.core.{ Buffer, SocketAddress }
-import zio.{ Chunk, IO, UIO, ZIO }
+import zio.*
 import zio._
 
 class AsynchronousByteChannel(private val channel: JAsynchronousByteChannel) {

@@ -4,18 +4,17 @@ import java.net.URI
 import java.nio.file.attribute.UserPrincipalLookupService
 import java.nio.{ file as jf }
 
-import zio.blocking.Blocking
 import zio.nio.core.file.{ Path, WatchService }
-import zio.{ UIO, ZIO, ZManaged }
+import zio.*
 
 import scala.jdk.CollectionConverters.*
 import zio.ZIO.attemptBlocking
-import zio.managed._
+import zio.managed.*
 
 final class FileSystem private (private val javaFileSystem: jf.FileSystem) {
   def provider: jf.spi.FileSystemProvider = javaFileSystem.provider()
 
-  private def close: ZIO[Blocking, Exception, Unit] =
+  private def close: IO[Exception, Unit] =
     attemptBlocking(javaFileSystem.close()).refineToOrDie[Exception]
 
   def isOpen: UIO[Boolean] = ZIO.succeed(javaFileSystem.isOpen())
@@ -36,12 +35,12 @@ final class FileSystem private (private val javaFileSystem: jf.FileSystem) {
 
   def getUserPrincipalLookupService: UserPrincipalLookupService = javaFileSystem.getUserPrincipalLookupService
 
-  def newWatchService: ZIO[Blocking, Exception, WatchService] =
+  def newWatchService: IO[Exception, WatchService] =
     attemptBlocking(WatchService.fromJava(javaFileSystem.newWatchService())).refineToOrDie[Exception]
 }
 
 object FileSystem {
-  private val close: FileSystem => ZIO[Blocking, Nothing, Unit] = _.close.orDie
+  private val close: FileSystem => IO[Nothing, Unit] = _.close.orDie
 
   def fromJava(javaFileSystem: jf.FileSystem): FileSystem = new FileSystem(javaFileSystem)
 

@@ -2,7 +2,7 @@ package ftier
 package http
 package server
 
-import zio.*, clock.*, nio.*, core.*, core.channels.*, stream.*, blocking.*
+import zio.*, nio.*, core.*, core.channels.*, stream.*
 import ws.*
 
 import ext.{*, given}
@@ -21,7 +21,7 @@ case class WsResp[R](req: UpgradeRequest, handler: WsHandler[R])
 
 type WsHandler[R] = Msg => RIO[WsContext & R, Unit]
 
-def processHttp[R <: ?](ch: SocketChannel, h: HttpHandler[R])(protocol: Protocol.Http, chunk: Chunk[Byte]): RIO[R & Blocking, Protocol] =
+def processHttp[R](ch: SocketChannel, h: HttpHandler[R])(protocol: Protocol.Http, chunk: Chunk[Byte]): RIO[R & Blocking, Protocol] =
   http.processChunk(chunk, protocol.state).flatMap{
     case HttpState.MsgDone(meta, body) =>
       val req = Request(method=meta.method, url=meta.url, meta.headers, body)
@@ -90,7 +90,7 @@ def processHttp[R <: ?](ch: SocketChannel, h: HttpHandler[R])(protocol: Protocol
       yield p
   }
 
-def processWs[R <: ?](ch: SocketChannel)(protocol: Protocol.Ws[R], chunk: Chunk[Byte]): RIO[R, Protocol] =
+def processWs[R](ch: SocketChannel)(protocol: Protocol.Ws[R], chunk: Chunk[Byte]): RIO[R, Protocol] =
   val state = protocol.state
   val newState = ws.parseHeader(state.copy(data=state.data ++ chunk))
   newState match
@@ -106,7 +106,7 @@ def processWs[R <: ?](ch: SocketChannel)(protocol: Protocol.Ws[R], chunk: Chunk[
     case state => 
       ZIO.succeed(protocol.copy(state=state))
 
-def httpProtocol[R <: ?](ch: SocketChannel, h: HttpHandler[R], state: Ref[Protocol])(chunk: Chunk[Byte]): RIO[R & Blocking, Unit] =
+def httpProtocol[R](ch: SocketChannel, h: HttpHandler[R], state: Ref[Protocol])(chunk: Chunk[Byte]): RIO[R & Blocking, Unit] =
   for
     data <- state.get
     data <-
@@ -116,7 +116,7 @@ def httpProtocol[R <: ?](ch: SocketChannel, h: HttpHandler[R], state: Ref[Protoc
     _ <- state.set(data)
   yield ()
 
-def bind[R <: ?](addr: SocketAddress, h: HttpHandler[R], conf: ServerConf = ServerConf.default): RIO[R & Blocking & Clock, Unit] =
+def bind[R](addr: SocketAddress, h: HttpHandler[R], conf: ServerConf = ServerConf.default): RIO[R & Blocking & Clock, Unit] =
   for
     r <- ZIO.environment[R & Blocking]
     _ <- tcp.bind(addr, conf.workers, ch =>

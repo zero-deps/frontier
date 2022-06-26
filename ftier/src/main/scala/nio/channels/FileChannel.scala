@@ -5,15 +5,14 @@ import java.nio.channels.{ FileChannel as JFileChannel }
 import java.nio.file.OpenOption
 import java.nio.file.attribute.FileAttribute
 
-import zio.blocking.{ Blocking, * }
 import zio.nio.core.{ ByteBuffer, MappedByteBuffer }
 import zio.nio.core.channels.FileLock
 import zio.nio.core.file.Path
-import zio.{ IO, Managed, ZIO, ZManaged }
+import zio.*
 
 import scala.collection.JavaConverters.*
 import zio.ZIO.attemptBlocking
-import zio.managed._
+import zio.managed.*
 
 final class FileChannel private[channels] (override protected[channels] val channel: JFileChannel)
     extends GatheringByteChannel
@@ -25,29 +24,29 @@ final class FileChannel private[channels] (override protected[channels] val chan
 
   def size: IO[IOException, Long] = ZIO.attempt(channel.size()).refineToOrDie[IOException]
 
-  def truncate(size: Long): ZIO[Blocking, Exception, Unit] =
+  def truncate(size: Long): IO[Exception, Unit] =
     attemptBlocking(channel.truncate(size)).unit.refineToOrDie[Exception]
 
-  def force(metadata: Boolean): ZIO[Blocking, IOException, Unit] =
+  def force(metadata: Boolean): IO[IOException, Unit] =
     attemptBlocking(channel.force(metadata)).refineToOrDie[IOException]
 
-  def transferTo(position: Long, count: Long, target: GatheringByteChannel): ZIO[Blocking, Exception, Long] =
+  def transferTo(position: Long, count: Long, target: GatheringByteChannel): IO[Exception, Long] =
     attemptBlocking(channel.transferTo(position, count, target.channel)).refineToOrDie[Exception]
 
-  def transferFrom(src: ScatteringByteChannel, position: Long, count: Long): ZIO[Blocking, Exception, Long] =
+  def transferFrom(src: ScatteringByteChannel, position: Long, count: Long): IO[Exception, Long] =
     attemptBlocking(channel.transferFrom(src.channel, position, count)).refineToOrDie[Exception]
 
-  def read(dst: ByteBuffer, position: Long): ZIO[Blocking, Exception, Int] =
+  def read(dst: ByteBuffer, position: Long): IO[Exception, Int] =
     dst
-      .withJavaBuffer[Blocking, Throwable, Int](buffer => attemptBlocking(channel.read(buffer, position)))
+      .withJavaBuffer[Any, Throwable, Int](buffer => attemptBlocking(channel.read(buffer, position)))
       .refineToOrDie[Exception]
 
-  def write(src: ByteBuffer, position: Long): ZIO[Blocking, Exception, Int] =
+  def write(src: ByteBuffer, position: Long): IO[Exception, Int] =
     src
-      .withJavaBuffer[Blocking, Throwable, Int](buffer => attemptBlocking(channel.write(buffer, position)))
+      .withJavaBuffer[Any, Throwable, Int](buffer => attemptBlocking(channel.write(buffer, position)))
       .refineToOrDie[Exception]
 
-  def map(mode: JFileChannel.MapMode, position: Long, size: Long): ZIO[Blocking, Exception, MappedByteBuffer] =
+  def map(mode: JFileChannel.MapMode, position: Long, size: Long): IO[Exception, MappedByteBuffer] =
     ZIO
       .environmentWithZIO[Blocking](_.get.effectBlocking(new MappedByteBuffer(channel.map(mode, position, size))))
       .refineToOrDie[Exception]
@@ -56,7 +55,7 @@ final class FileChannel private[channels] (override protected[channels] val chan
     position: Long = 0L,
     size: Long = Long.MaxValue,
     shared: Boolean = false
-  ): ZIO[Blocking, Exception, FileLock] =
+  ): IO[Exception, FileLock] =
     attemptBlocking(FileLock.fromJava(channel.lock(position, size, shared))).refineToOrDie[Exception]
 
   def tryLock(

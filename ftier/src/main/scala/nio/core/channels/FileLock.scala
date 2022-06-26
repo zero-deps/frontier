@@ -3,7 +3,7 @@ package zio.nio.core.channels
 import java.io.IOException
 import java.nio.channels.{ FileLock as JFileLock }
 
-import zio.{ IO, UIO }
+import zio.*
 
 final class FileLock private[channels] (javaLock: JFileLock) {
 

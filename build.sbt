@@ -7,7 +7,8 @@ lazy val ftier = project
   .settings(
     scalaVersion := "3.2.0-RC1"
   , libraryDependencies ++= Seq(
-      "dev.zio" %% "zio-streams"  % "2.0.0"
+      "dev.zio" %% "zio-streams" % "2.0.0"
+    , "dev.zio" %% "zio-managed" % "2.0.0"
     , "dev.zio" %% "zio-test-sbt" % "2.0.0" % Test
     )
   , testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")

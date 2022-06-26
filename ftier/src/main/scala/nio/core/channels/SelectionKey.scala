@@ -6,7 +6,7 @@ import java.nio.channels.{
   SelectionKey as JSelectionKey
 }
 
-import zio.{ IO, UIO }
+import zio.*
 
 object SelectionKey {
 

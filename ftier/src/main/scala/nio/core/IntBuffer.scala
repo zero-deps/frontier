@@ -1,6 +1,6 @@
 package zio.nio.core
 
-import zio.{ Chunk, IO, ZIO }
+import zio.*
 import java.nio.{ BufferUnderflowException, ByteOrder, ReadOnlyBufferException, IntBuffer as JIntBuffer }
 
 final class IntBuffer(val intBuffer: JIntBuffer) extends Buffer[Int](intBuffer) {

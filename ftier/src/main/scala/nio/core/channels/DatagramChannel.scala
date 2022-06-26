@@ -4,7 +4,7 @@ import java.io.IOException
 import java.net.{ SocketOption, DatagramSocket as JDatagramSocket, SocketAddress as JSocketAddress }
 import java.nio.channels.{ DatagramChannel as JDatagramChannel }
 
-import zio.{ IO, UIO }
+import zio.*
 import zio.nio.core.{ ByteBuffer, SocketAddress }
 
 /**

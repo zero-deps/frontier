@@ -5,7 +5,7 @@ package channels
 import java.nio.channels.{ ScatteringByteChannel as JScatteringByteChannel }
 import java.nio.{ ByteBuffer as JByteBuffer }
 
-import zio.{ Chunk, IO, UIO }
+import zio.*
 import zio.nio.core.Buffer
 
 trait ScatteringByteChannel extends Channel {

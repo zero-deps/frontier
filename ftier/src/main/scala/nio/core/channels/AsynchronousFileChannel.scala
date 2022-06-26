@@ -8,7 +8,7 @@ import java.nio.file.OpenOption
 import zio.interop.javaz.*
 import zio.nio.core.file.Path
 import zio.nio.core.{ Buffer, ByteBuffer }
-import zio.{ Chunk, IO }
+import zio.*
 
 import scala.jdk.CollectionConverters.*
 import scala.concurrent.ExecutionContextExecutorService

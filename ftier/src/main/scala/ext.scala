@@ -9,7 +9,7 @@ def md5(xs: Array[Byte]): Task[String] =
 
 def uuid(): String = java.util.UUID.randomUUID().toString
 
-extension [A](a: A | Null)
+extension [A](a: A)// | Null)
   inline def toOption: Option[A] = if a == null then None else Some(a)
 
 extension (xs: Array[Byte])

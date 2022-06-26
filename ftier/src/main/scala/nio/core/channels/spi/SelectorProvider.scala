@@ -6,7 +6,7 @@ import java.nio.channels.{ Channel as JChannel, DatagramChannel as JDatagramChan
 import java.nio.channels.spi.{ SelectorProvider as JSelectorProvider }
 
 import zio.nio.core.channels.{ Pipe, Selector, ServerSocketChannel, SocketChannel }
-import zio.IO
+import zio.*
 
 class SelectorProvider(private val selectorProvider: JSelectorProvider) {
 

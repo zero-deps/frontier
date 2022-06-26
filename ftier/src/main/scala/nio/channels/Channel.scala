@@ -2,7 +2,7 @@ package zio.nio.channels
 
 import java.nio.channels.{ Channel as JChannel }
 
-import zio.{ IO, UIO }
+import zio.*
 
 trait Channel {
   protected val channel: JChannel

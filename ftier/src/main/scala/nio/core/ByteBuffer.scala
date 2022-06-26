@@ -1,6 +1,6 @@
 package zio.nio.core
 
-import zio.{ Chunk, IO, UIO, ZIO }
+import zio.*
 import java.nio.{ BufferUnderflowException, ByteOrder, ReadOnlyBufferException, ByteBuffer as JByteBuffer }
 
 class ByteBuffer protected[nio] (protected[nio] val byteBuffer: JByteBuffer) extends Buffer[Byte](byteBuffer) {

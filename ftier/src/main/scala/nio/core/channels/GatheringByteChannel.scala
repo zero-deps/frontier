@@ -4,7 +4,7 @@ import java.nio.channels.{ GatheringByteChannel as JGatheringByteChannel }
 import java.nio.{ ByteBuffer as JByteBuffer }
 
 import zio.nio.core.Buffer
-import zio.{ Chunk, IO }
+import zio.*
 
 trait GatheringByteChannel extends Channel {
   override protected[channels] val channel: JGatheringByteChannel

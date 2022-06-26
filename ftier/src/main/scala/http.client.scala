@@ -2,7 +2,7 @@ package ftier
 package http
 package client
 
-import zio.*, blocking.*, stream.*
+import zio.*, stream.*
 import java.net.http.{HttpClient, HttpRequest}
 import java.net.http.HttpResponse.BodyHandlers
 import java.net.URI
@@ -14,7 +14,7 @@ import zio.ZIO.attemptBlocking
 case object Timeout
 type Err = Timeout.type
 
-def send(cp: ConnectionPool, request: Request): ZIO[Blocking, Err, Response] = for {
+def send(cp: ConnectionPool, request: Request): IO[Err, Response] = for {
   uri  <- ZIO.attempt(URI(request.url)).orDie
   reqb <- ZIO.attempt(HttpRequest.newBuilder(uri).nn.method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.bodyAsBytes)).nn).orDie
   _    <- if request.headers.nonEmpty then ZIO.attempt(reqb.headers(request.headers.toList.flatMap(x => x._1 :: x._2 :: Nil) *)).orDie else ZIO.unit
@@ -26,7 +26,7 @@ def send(cp: ConnectionPool, request: Request): ZIO[Blocking, Err, Response] = f
         case Some(e1: java.net.http.HttpConnectTimeoutException) => ZIO.fail(Timeout)
         case Some(e1) => ZIO.die(e1)
         case None => ZIO.die(e)
-    ): ZIO[Blocking, Err, Response])
+    ): IO[Err, Response])
 } yield resp
 
 def sendAsync(cp: ConnectionPool, request: Request): IO[Err, Response] = {

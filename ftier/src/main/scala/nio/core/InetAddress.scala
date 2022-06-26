@@ -2,7 +2,7 @@ package zio.nio.core
 
 import java.net.{ InetAddress as JInetAddress }
 
-import zio.IO
+import zio.*
 
 class InetAddress private[nio] (private[nio] val jInetAddress: JInetAddress) {
   def isMulticastAddress: Boolean = jInetAddress.isMulticastAddress

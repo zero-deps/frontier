@@ -9,7 +9,7 @@ import zio.interop.javaz.*
 import zio.nio.core.{ Buffer, ByteBuffer }
 import zio.nio.core.channels.FileLock
 import zio.nio.core.file.Path
-import zio.{ Chunk, IO, Managed, ZIO }
+import zio.*
 
 import scala.jdk.CollectionConverters.*
 import scala.concurrent.ExecutionContextExecutorService

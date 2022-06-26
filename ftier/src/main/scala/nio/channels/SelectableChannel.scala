@@ -13,7 +13,7 @@ import zio.nio.channels.spi.SelectorProvider
 import zio.nio.core.{ Buffer, SocketAddress }
 import zio.nio.core.channels.SelectionKey
 import zio.nio.core.channels.SelectionKey.Operation
-import zio.{ IO, Managed, UIO }
+import zio.*
 
 trait SelectableChannel extends Channel {
   protected val channel: JSelectableChannel

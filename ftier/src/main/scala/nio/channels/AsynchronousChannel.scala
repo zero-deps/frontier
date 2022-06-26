@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit
 
 import zio.nio.core.{ Buffer, SocketAddress }
 import zio.nio.core.channels.AsynchronousChannelGroup
-import zio.{ Chunk, IO, Managed, UIO, ZIO }
+import zio.*
 import zio.interop.javaz.*
 import zio._
 

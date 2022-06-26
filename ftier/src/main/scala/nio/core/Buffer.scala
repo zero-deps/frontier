@@ -14,7 +14,7 @@ import java.nio.{
   ShortBuffer as JShortBuffer
 }
 
-import zio.{ Chunk, IO, UIO, ZIO }
+import zio.*
 
 import scala.reflect.ClassTag
 

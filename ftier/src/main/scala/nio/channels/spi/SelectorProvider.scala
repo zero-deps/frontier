@@ -7,7 +7,7 @@ import java.nio.channels.spi.{ SelectorProvider as JSelectorProvider }
 
 import zio.nio.channels.{ Selector, ServerSocketChannel, SocketChannel }
 import zio.nio.core.channels.{ Pipe }
-import zio.{ IO, Managed }
+import zio.*
 
 class SelectorProvider(private val selectorProvider: JSelectorProvider) {
 

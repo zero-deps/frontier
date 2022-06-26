@@ -3,7 +3,7 @@ package zio.nio.channels
 import java.nio.channels.{ GatheringByteChannel as JGatheringByteChannel }
 import java.nio.{ ByteBuffer as JByteBuffer }
 
-import zio.{ Chunk, IO }
+import zio.*
 import zio.nio.core.Buffer
 
 trait GatheringByteChannel extends Channel {

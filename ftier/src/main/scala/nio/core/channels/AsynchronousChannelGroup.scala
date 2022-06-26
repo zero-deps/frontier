@@ -6,7 +6,7 @@ import java.nio.channels.spi.{ AsynchronousChannelProvider as JAsynchronousChann
 import java.util.concurrent.{ ThreadFactory as JThreadFactory }
 import java.util.concurrent.TimeUnit
 
-import zio.{ IO, UIO }
+import zio.*
 
 
 import scala.concurrent.ExecutionContextExecutorService

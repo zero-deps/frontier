@@ -2,7 +2,7 @@ package zio.nio.core
 
 import java.net.{ SocketException, NetworkInterface as JNetworkInterface }
 
-import zio.IO
+import zio.*
 
 import scala.collection.JavaConverters.*
 

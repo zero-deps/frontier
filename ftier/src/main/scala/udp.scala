@@ -1,11 +1,11 @@
 package ftier
 package udp
 
-import zio.*, console.*
+import zio.*
 import zio.nio.*, channels.{Channel as _, *}, core.*
 
 import ext.{*, given}
-import zio.managed._
+import zio.managed.*
 
 type Host = String
 case class ChannelRead(read: IO[NoAddr.type, Tuple2[Host, Chunk[Byte]]])

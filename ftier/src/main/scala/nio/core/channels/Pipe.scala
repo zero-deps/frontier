@@ -4,7 +4,7 @@ import java.io.IOException
 import java.nio.channels.{ Pipe as JPipe }
 
 import zio.nio.core.channels
-import zio.{ IO, UIO }
+import zio.*
 
 class Pipe(private val pipe: JPipe) {
 

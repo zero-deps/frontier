@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
 import zio.Duration
 
 import scala.jdk.CollectionConverters.*
-import zio.{ IO, UIO, ZIO }
+import zio.*
 
 trait Watchable {
   protected def javaWatchable: JWatchable
@@ -66,14 +66,14 @@ final class WatchService private (private[file] val javaWatchService: JWatchServ
     ZIO.attempt(Option(javaWatchService.poll(timeout.toNanos, TimeUnit.NANOSECONDS)).map(new WatchKey(_)))
       .refineToOrDie[Exception]
 
-  def take: ZIO[Blocking, Exception, WatchKey] =
+  def take: IO[Exception, WatchKey] =
     ZIO
       .environmentWithZIO[Blocking](_.get.effectBlocking(new WatchKey(javaWatchService.take())))
       .refineToOrDie[Exception]
 }
 
 object WatchService {
-  def forDefaultFileSystem: ZIO[Blocking, Exception, WatchService] = FileSystem.default.newWatchService
+  def forDefaultFileSystem: IO[Exception, WatchService] = FileSystem.default.newWatchService
 
   def fromJava(javaWatchService: JWatchService): WatchService = new WatchService(javaWatchService)
 }

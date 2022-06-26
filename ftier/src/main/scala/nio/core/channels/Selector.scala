@@ -5,7 +5,7 @@ import java.nio.channels.{ ClosedSelectorException, Selector as JSelector, Selec
 
 import zio.Duration
 import zio.nio.core.channels.spi.SelectorProvider
-import zio.{ IO, UIO }
+import zio.*
 
 import scala.jdk.CollectionConverters.*
 

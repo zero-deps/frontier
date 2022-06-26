@@ -4,8 +4,7 @@ import java.net.URI
 import java.nio.file.attribute.UserPrincipalLookupService
 import java.nio.{ file as jf }
 
-import zio.blocking.Blocking
-import zio.{ UIO, ZIO }
+import zio.*
 
 import scala.jdk.CollectionConverters.*
 import zio.ZIO.attemptBlocking
@@ -13,7 +12,7 @@ import zio.ZIO.attemptBlocking
 final class FileSystem private (private val javaFileSystem: jf.FileSystem) {
   def provider: jf.spi.FileSystemProvider = javaFileSystem.provider()
 
-  def close: ZIO[Blocking, Exception, Unit] =
+  def close: IO[Exception, Unit] =
     attemptBlocking(javaFileSystem.close()).refineToOrDie[Exception]
 
   def isOpen: UIO[Boolean] = ZIO.succeed(javaFileSystem.isOpen())
@@ -34,7 +33,7 @@ final class FileSystem private (private val javaFileSystem: jf.FileSystem) {
 
   def getUserPrincipalLookupService: UserPrincipalLookupService = javaFileSystem.getUserPrincipalLookupService
 
-  def newWatchService: ZIO[Blocking, Exception, WatchService] =
+  def newWatchService: IO[Exception, WatchService] =
     attemptBlocking(WatchService.fromJava(javaFileSystem.newWatchService())).refineToOrDie[Exception]
 }
 
@@ -43,18 +42,18 @@ object FileSystem {
 
   def default: FileSystem = new FileSystem(jf.FileSystems.getDefault)
 
-  def getFileSystem(uri: URI): ZIO[Blocking, Exception, FileSystem] =
+  def getFileSystem(uri: URI): IO[Exception, FileSystem] =
     attemptBlocking(new FileSystem(jf.FileSystems.getFileSystem(uri))).refineToOrDie[Exception]
 
-  def newFileSystem(uri: URI, env: (String, Any)*): ZIO[Blocking, Exception, FileSystem] =
+  def newFileSystem(uri: URI, env: (String, Any)*): IO[Exception, FileSystem] =
     attemptBlocking(new FileSystem(jf.FileSystems.newFileSystem(uri, env.toMap.asJava)))
       .refineToOrDie[Exception]
 
-  def newFileSystem(uri: URI, env: Map[String, ?], loader: ClassLoader): ZIO[Blocking, Exception, FileSystem] =
+  def newFileSystem(uri: URI, env: Map[String, ?], loader: ClassLoader): IO[Exception, FileSystem] =
     attemptBlocking(new FileSystem(jf.FileSystems.newFileSystem(uri, env.asJava, loader)))
       .refineToOrDie[Exception]
 
-  def newFileSystem(path: Path, loader: ClassLoader): ZIO[Blocking, Exception, FileSystem] =
+  def newFileSystem(path: Path, loader: ClassLoader): IO[Exception, FileSystem] =
     attemptBlocking(new FileSystem(jf.FileSystems.newFileSystem(path.javaPath, loader)))
       .refineToOrDie[Exception]
 }
