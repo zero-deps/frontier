@@ -3,15 +3,14 @@ package ftier.demo
 import ftier.*, ws.*, http.*, server.*
 import zio.*, nio.*, core.*
 
-val app =
-  for
-    addr <- SocketAddress.inetSocketAddress(9012).orDie
-    _ <- bind(addr, httpHandler, ServerConf(workers=10))
-  yield ()
+object Demo extends ZIOAppDefault:
+  def run =
+    for
+      addr <- SocketAddress.inetSocketAddress(9012).orDie
+      _ <- bind(addr, httpHandler, ServerConf(workers=10))
+    yield ()
 
-@main def run(): Unit = Runtime.default.unsafeRun(app)
-
-val httpHandler: HttpHandler[ZEnv] =
+val httpHandler: HttpHandler[Any] =
   case UpgradeRequest(r) if r.req.path == "/wsecho" =>
     ZIO.succeed(WsResp(r, wsHandler))
   case req@ Post(Root / "echo") =>
@@ -19,7 +18,7 @@ val httpHandler: HttpHandler[ZEnv] =
   case _ =>
     ZIO.succeed(Response.empty(404))
 
-val wsHandler: WsHandler[WsContext & ZEnv] =
+val wsHandler: WsHandler[WsContext] =
   case msg: Binary => Ws.send(msg)
   case _: Close => Ws.close()
   case _ => ZIO.unit

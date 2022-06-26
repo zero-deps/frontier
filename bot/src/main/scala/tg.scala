@@ -8,8 +8,7 @@ import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
-import zio.*, clock.*, json.*, blocking.*
-import zio.Clock.currentTime
+import zio.*, json.*
 
 object tg:
   enum Update:
@@ -44,12 +43,13 @@ object tg:
       _ <- ZIO.attempt(hmac_sha256.init(skey)).orDie
       mac_res <- ZIO.attempt(hmac_sha256.doFinal(data.getBytes("utf8").nn).nn).orDie
       _ <- ZIO.when(mac_res.hex.utf8 != hash)(ZIO.fail(Invalid))
-      now_sec <- currentTime(TimeUnit.SECONDS)
+      clock <- ZIO.service[Clock]
+      now_sec <- clock.currentTime(TimeUnit.SECONDS)
       _ <- ZIO.when(now_sec - date > 86400)(ZIO.fail(Invalid))
     yield ()
 
   object push:
-    def sendMessage(token: String, text: String, telegramId: ChatId, muted: Boolean): URIO[Blocking, Unit] =
+    def sendMessage(token: String, text: String, telegramId: ChatId, muted: Boolean): UIO[Unit] =
       (for
         url <- ZIO.succeed(s"https://api.telegram.org/bot$token/sendMessage")
         payload <- ZIO.attempt(s"chat_id=$telegramId&disable_notification=$muted&text="+URLEncoder.encode(text, "utf8")).orDie

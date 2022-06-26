@@ -62,14 +62,14 @@ def bind(
 , accessSelector: Selector
 , readSelectors: Vector[Selector]
 , init: TcpInit
-): RIO[Clock, Unit] =
+): Task[Unit] =
   for {
     _ <- serverChannel.configureBlocking(false)
     _ <- serverChannel.bind(addr)
     _ <- serverChannel.register(accessSelector, SelectionKey.Operation.Accept)
     worker <- Ref.make[Int](0)
     afork <-
-      select[Clock](accessSelector, key =>
+      select[Any](accessSelector, key =>
         ZIO.whenZIO(key.isAcceptable: Task[Boolean]){
           for {
             server  <- getServerSocketChannel(key)
@@ -115,7 +115,7 @@ def bind(
   addr: SocketAddress
 , workers: Int
 , init: TcpInit
-): RIO[Clock, Unit] =
+): Task[Unit] =
   ServerSocketChannel.open.toManagedWith(_.close.orDie).use{ serverChannel =>
     Selector.make.toManagedWith(_.close.orDie).use{ accessSelector =>
       ZManaged.collectAll(

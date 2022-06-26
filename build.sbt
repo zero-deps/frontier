@@ -1,6 +1,6 @@
 lazy val `ftier-root` = project
   .in(file("."))
-  .aggregate(ftier/*, bot, demo, benchmark*/)
+  .aggregate(ftier, bot, demo, benchmark)
 
 lazy val ftier = project
   .in(file("ftier"))
@@ -16,7 +16,6 @@ lazy val ftier = project
       "-language:postfixOps"
     // , "-language:strictEquality"
     // , "-Yexplicit-nulls"
-    , "-nowarn"
     )
   )
 
@@ -25,7 +24,7 @@ lazy val bot = project
   .settings(
     scalaVersion := "3.2.0-RC1"
   , libraryDependencies ++= Seq(
-      "dev.zio" %% "zio-json" % "0.2.0-M4"
+      "dev.zio" %% "zio-json" % "0.3.0-RC8"
     )
   , scalacOptions ++= Seq(
       "-language:strictEquality"
