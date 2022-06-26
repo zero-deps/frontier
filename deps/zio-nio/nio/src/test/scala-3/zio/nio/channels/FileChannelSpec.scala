@@ -17,7 +17,7 @@ object FileChannelSpec extends BaseSpec {
 
   override def spec =
     suite("FileChannelSpec")(
-      testM("asynchronous file buffer read") {
+      test("asynchronous file buffer read") {
         val path = Path("deps/zio-nio/nio/src/test/resources/async_file_read_test.txt")
         AsynchronousFileChannel
           .open(path, StandardOpenOption.READ)
@@ -31,7 +31,7 @@ object FileChannelSpec extends BaseSpec {
             } yield assert(text)(equalTo("Hello World"))
           }
       },
-      testM("asynchronous file chunk read") {
+      test("asynchronous file chunk read") {
         val path = Path("deps/zio-nio/nio/src/test/resources/async_file_read_test.txt")
         AsynchronousFileChannel
           .open(path, StandardOpenOption.READ)
@@ -41,7 +41,7 @@ object FileChannelSpec extends BaseSpec {
             } yield assert(bytes)(equalTo(Chunk.fromArray("Hello World".getBytes(StandardCharsets.UTF_8))))
           }
       },
-      testM("asynchronous file write") {
+      test("asynchronous file write") {
         val path = Path("deps/zio-nio/nio/src/test/resources/async_file_write_test.txt")
         AsynchronousFileChannel
           .open(
@@ -53,13 +53,13 @@ object FileChannelSpec extends BaseSpec {
             for {
               buffer <- Buffer.byte(Chunk.fromArray("Hello World".getBytes))
               _      <- channel.writeBuffer(buffer, 0)
-              path   <- ZIO.effectTotal(Path("deps/zio-nio/nio/src/test/resources/async_file_write_test.txt"))
-              result <- ZIO.effect(Source.fromFile(path.toFile).getLines().toSeq)
+              path   <- ZIO.succeed(Path("deps/zio-nio/nio/src/test/resources/async_file_write_test.txt"))
+              result <- ZIO.attempt(Source.fromFile(path.toFile).getLines().toSeq)
               _      <- Files.delete(path)
             } yield assert(result.size)(equalTo(1)) && assert(result.head)(equalTo("Hello World"))
           }
       },
-      testM("memory mapped buffer") {
+      test("memory mapped buffer") {
         val path = Path("deps/zio-nio/nio/src/test/resources/async_file_read_test.txt")
         FileChannel
           .open(path, StandardOpenOption.READ)

@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 import zio.*, clock.*, json.*, blocking.*
+import zio.Clock.currentTime
 
 object tg:
   enum Update:
@@ -36,26 +37,26 @@ object tg:
 
   def validate(hash: String, date: Long, data: String, token: String): ZIO[Clock, Invalid.type, Unit] =
     for
-      sha256 <- IO.effectTotal(MessageDigest.getInstance("SHA-256").nn)
-      hmac_sha256 <- IO.effectTotal(Mac.getInstance("HmacSHA256").nn)
-      secret_key <- IO.effectTotal(sha256.digest(token.getBytes("ascii").nn))
-      skey <- IO.effectTotal(SecretKeySpec(secret_key, "HmacSHA256"))
-      _ <- IO.effect(hmac_sha256.init(skey)).orDie
-      mac_res <- IO.effect(hmac_sha256.doFinal(data.getBytes("utf8").nn).nn).orDie
-      _ <- IO.when(mac_res.hex.utf8 != hash)(IO.fail(Invalid))
+      sha256 <- ZIO.succeed(MessageDigest.getInstance("SHA-256").nn)
+      hmac_sha256 <- ZIO.succeed(Mac.getInstance("HmacSHA256").nn)
+      secret_key <- ZIO.succeed(sha256.digest(token.getBytes("ascii").nn))
+      skey <- ZIO.succeed(SecretKeySpec(secret_key, "HmacSHA256"))
+      _ <- ZIO.attempt(hmac_sha256.init(skey)).orDie
+      mac_res <- ZIO.attempt(hmac_sha256.doFinal(data.getBytes("utf8").nn).nn).orDie
+      _ <- ZIO.when(mac_res.hex.utf8 != hash)(ZIO.fail(Invalid))
       now_sec <- currentTime(TimeUnit.SECONDS)
-      _ <- IO.when(now_sec - date > 86400)(IO.fail(Invalid))
+      _ <- ZIO.when(now_sec - date > 86400)(ZIO.fail(Invalid))
     yield ()
 
   object push:
     def sendMessage(token: String, text: String, telegramId: ChatId, muted: Boolean): URIO[Blocking, Unit] =
       (for
-        url <- IO.succeed(s"https://api.telegram.org/bot$token/sendMessage")
-        payload <- IO.effect(s"chat_id=$telegramId&disable_notification=$muted&text="+URLEncoder.encode(text, "utf8")).orDie
+        url <- ZIO.succeed(s"https://api.telegram.org/bot$token/sendMessage")
+        payload <- ZIO.attempt(s"chat_id=$telegramId&disable_notification=$muted&text="+URLEncoder.encode(text, "utf8")).orDie
         cp <- connectionPool
         _ <- send(cp, http.Request("POST", url, Map("Content-Type" -> "application/x-www-form-urlencoded"), payload))
       yield ()).catchAll{
-        case http.client.Timeout => IO.unit
+        case http.client.Timeout => ZIO.unit
       }
   end push
 

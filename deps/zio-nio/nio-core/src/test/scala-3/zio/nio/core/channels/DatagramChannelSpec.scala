@@ -2,27 +2,27 @@ package zio.nio.core.channels
 
 import zio.nio.core._
 import zio.test.Assertion._
-import zio.test.{ suite, testM, _ }
+import zio.test.{ suite, _ }
 import zio.{ IO, _ }
 
 object DatagramChannelSpec extends BaseSpec {
 
   override def spec =
     suite("DatagramChannelSpec")(
-      testM("read/write") {
+      test("read/write") {
         def echoServer(started: Promise[Nothing, SocketAddress]): IO[Exception, Unit] =
           for {
             address <- SocketAddress.inetSocketAddress(0)
             sink    <- Buffer.byte(3)
             _       <- Managed
-                         .make(DatagramChannel.open)(_.close.orDie)
+                         .acquireReleaseWith(DatagramChannel.open)(_.close.orDie)
                          .use { server =>
                            for {
                              _          <- server.bind(Some(address))
-                             addr       <- server.localAddress.flatMap(opt => IO.effect(opt.get).orDie)
+                             addr       <- server.localAddress.flatMap(opt => ZIO.attempt(opt.get).orDie)
                              _          <- started.succeed(addr)
                              retAddress <- server.receive(sink)
-                             addr       <- IO.fromOption(retAddress)
+                             addr       <- ZIO.fromOption(retAddress)
                              _          <- sink.flip
                              _          <- server.send(sink, addr)
                            } yield ()
@@ -33,7 +33,7 @@ object DatagramChannelSpec extends BaseSpec {
         def echoClient(address: SocketAddress): IO[Exception, Boolean] =
           for {
             src    <- Buffer.byte(3)
-            result <- Managed.make(DatagramChannel.open)(_.close.orDie).use { client =>
+            result <- Managed.acquireReleaseWith(DatagramChannel.open)(_.close.orDie).use { client =>
                         for {
                           _        <- client.connect(address)
                           sent     <- src.array
@@ -53,9 +53,9 @@ object DatagramChannelSpec extends BaseSpec {
           same          <- echoClient(addr)
         } yield assert(same)(isTrue)
       },
-      testM("close channel unbind port") {
+      test("close channel unbind port") {
         def client(address: SocketAddress): IO[Exception, Unit] =
-          Managed.make(DatagramChannel.open)(_.close.orDie).use(_.connect(address).unit)
+          Managed.acquireReleaseWith(DatagramChannel.open)(_.close.orDie).use(_.connect(address).unit)
 
         def server(
           address: SocketAddress,
@@ -63,11 +63,11 @@ object DatagramChannelSpec extends BaseSpec {
         ): IO[Exception, Fiber[Exception, Unit]] =
           for {
             worker <- Managed
-                        .make(DatagramChannel.open)(_.close.orDie)
+                        .acquireReleaseWith(DatagramChannel.open)(_.close.orDie)
                         .use { server =>
                           for {
                             _    <- server.bind(Some(address))
-                            addr <- server.localAddress.flatMap(opt => IO.effect(opt.get).orDie)
+                            addr <- server.localAddress.flatMap(opt => ZIO.attempt(opt.get).orDie)
                             _    <- started.succeed(addr)
                           } yield ()
                         }

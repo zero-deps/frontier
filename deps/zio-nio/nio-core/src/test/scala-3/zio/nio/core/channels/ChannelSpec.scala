@@ -1,7 +1,7 @@
 package zio.nio.core.channels
 
 import zio.nio.core.{ BaseSpec, Buffer, SocketAddress }
-import zio.test.{ suite, testM }
+import zio.test.suite
 import zio.{ IO, _ }
 import zio.test._
 import zio.test.Assertion._
@@ -10,19 +10,19 @@ object ChannelSpec extends BaseSpec {
 
   override def spec =
     suite("ChannelSpec")(
-      testM("read/write") {
+      test("read/write") {
         def echoServer(started: Promise[Nothing, SocketAddress]): IO[Exception, Unit] =
           for {
             address <- SocketAddress.inetSocketAddress(0)
             sink    <- Buffer.byte(3)
             _       <- Managed
-                         .make(AsynchronousServerSocketChannel())(_.close.orDie)
+                         .acquireReleaseWith(AsynchronousServerSocketChannel())(_.close.orDie)
                          .use { server =>
                            for {
                              _    <- server.bind(address)
-                             addr <- server.localAddress.flatMap(opt => IO.effect(opt.get).orDie)
+                             addr <- server.localAddress.flatMap(opt => ZIO.attempt(opt.get).orDie)
                              _    <- started.succeed(addr)
-                             _    <- Managed.make(server.accept)(_.close.orDie).use { worker =>
+                             _    <- Managed.acquireReleaseWith(server.accept)(_.close.orDie).use { worker =>
                                        worker.readBuffer(sink) *>
                                          sink.flip *>
                                          worker.writeBuffer(sink)
@@ -35,7 +35,7 @@ object ChannelSpec extends BaseSpec {
         def echoClient(address: SocketAddress): IO[Exception, Boolean] =
           for {
             src    <- Buffer.byte(3)
-            result <- Managed.make(AsynchronousSocketChannel())(_.close.orDie).use { client =>
+            result <- Managed.acquireReleaseWith(AsynchronousSocketChannel())(_.close.orDie).use { client =>
                         for {
                           _        <- client.connect(address)
                           sent     <- src.array
@@ -55,19 +55,19 @@ object ChannelSpec extends BaseSpec {
           same          <- echoClient(address)
         } yield assert(same)(isTrue)
       },
-      testM("read should fail when connection close") {
+      test("read should fail when connection close") {
         def server(started: Promise[Nothing, SocketAddress]): IO[Exception, Fiber[Exception, Boolean]] =
           for {
             address <- SocketAddress.inetSocketAddress(0)
             result  <- Managed
-                         .make(AsynchronousServerSocketChannel())(_.close.orDie)
+                         .acquireReleaseWith(AsynchronousServerSocketChannel())(_.close.orDie)
                          .use { server =>
                            for {
                              _      <- server.bind(address)
-                             addr   <- server.localAddress.flatMap(opt => IO.effect(opt.get).orDie)
+                             addr   <- server.localAddress.flatMap(opt => ZIO.attempt(opt.get).orDie)
                              _      <- started.succeed(addr)
                              result <- Managed
-                                         .make(server.accept)(_.close.orDie)
+                                         .acquireReleaseWith(server.accept)(_.close.orDie)
                                          .use(worker => worker.read(3) *> worker.read(3) *> ZIO.succeed(false))
                                          .catchAll {
                                            case ex: java.io.IOException if ex.getMessage == "Connection reset by peer" =>
@@ -80,7 +80,7 @@ object ChannelSpec extends BaseSpec {
 
         def client(address: SocketAddress): IO[Exception, Unit] =
           for {
-            _ <- Managed.make(AsynchronousSocketChannel())(_.close.orDie).use { client =>
+            _ <- Managed.acquireReleaseWith(AsynchronousSocketChannel())(_.close.orDie).use { client =>
                    for {
                      _ <- client.connect(address)
                      _  = client.write(Chunk.fromArray(Array[Byte](1, 1, 1)))
@@ -96,7 +96,7 @@ object ChannelSpec extends BaseSpec {
           same          <- serverFiber.join
         } yield assert(same)(isTrue)
       },
-      testM("close channel unbind port") {
+      test("close channel unbind port") {
         def client(address: SocketAddress): IO[Exception, Unit] =
           for {
             client <- AsynchronousSocketChannel()
@@ -111,10 +111,10 @@ object ChannelSpec extends BaseSpec {
           for {
             server <- AsynchronousServerSocketChannel()
             _      <- server.bind(address)
-            addr   <- server.localAddress.flatMap(opt => IO.effect(opt.get).orDie)
+            addr   <- server.localAddress.flatMap(opt => ZIO.attempt(opt.get).orDie)
             _      <- started.succeed(addr)
             worker <- server.accept
-                        .bracket(_.close.ignore *> server.close.ignore)(_ => ZIO.unit)
+                        .acquireReleaseWith(_.close.ignore *> server.close.ignore)(_ => ZIO.unit)
                         .fork
           } yield worker
 

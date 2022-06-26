@@ -13,9 +13,9 @@ object ScatterGatherChannelSpec extends BaseSpec {
 
   override def spec =
     suite("ScatterGatherChannelSpec")(
-      testM("scattering read") {
+      test("scattering read") {
         for {
-          raf        <- ZIO.effectTotal(new RandomAccessFile("deps/zio-nio/nio-core/src/test/resources/scattering_read_test.txt", "r"))
+          raf        <- ZIO.succeed(new RandomAccessFile("deps/zio-nio/nio-core/src/test/resources/scattering_read_test.txt", "r"))
           fileChannel = raf.getChannel
           readLine    = (buffer: Buffer[Byte]) =>
                           for {
@@ -23,20 +23,20 @@ object ScatterGatherChannelSpec extends BaseSpec {
                             array <- buffer.array
                             text   = array.takeWhile(_ != 10).map(_.toChar).mkString.trim
                           } yield text
-          buffs      <- IO.collectAll(List(Buffer.byte(5), Buffer.byte(5)))
+          buffs      <- ZIO.collectAll(List(Buffer.byte(5), Buffer.byte(5)))
           channel     = new FileChannel(fileChannel)
           _          <- channel.readBuffer(buffs)
-          list       <- IO.collectAll(buffs.map(readLine))
+          list       <- ZIO.collectAll(buffs.map(readLine))
           _          <- channel.close
         } yield assert(list)(equalTo("Hello" :: "World" :: Nil))
       },
-      testM("gathering write") {
+      test("gathering write") {
         for {
-          file       <- ZIO.effect(new File("deps/zio-nio/nio-core/src/test/resources/gathering_write_test.txt"))
+          file       <- ZIO.attempt(new File("deps/zio-nio/nio-core/src/test/resources/gathering_write_test.txt"))
           raf         = new RandomAccessFile(file, "rw")
           fileChannel = raf.getChannel
 
-          buffs  <- IO.collectAll(
+          buffs  <- ZIO.collectAll(
                       List(
                         Buffer.byte(Chunk.fromArray("Hello".getBytes)),
                         Buffer.byte(Chunk.fromArray("World".getBytes))

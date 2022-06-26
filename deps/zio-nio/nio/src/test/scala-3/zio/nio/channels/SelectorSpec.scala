@@ -3,7 +3,7 @@ package zio.nio.channels
 import java.nio.channels.{ CancelledKeyException, SocketChannel => JSocketChannel }
 
 import zio._
-import zio.clock.Clock
+import zio.Clock
 import zio.nio.core.channels.SelectionKey.Operation
 import zio.nio.core.{ Buffer, SocketAddress }
 import zio.nio.BaseSpec
@@ -14,7 +14,7 @@ object SelectorSpec extends BaseSpec {
 
   override def spec =
     suite("SelectorSpec")(
-      testM("read/write") {
+      test("read/write") {
         for {
           started     <- Promise.make[Nothing, SocketAddress]
           serverFiber <- server(started).fork
@@ -41,8 +41,8 @@ object SelectorSpec extends BaseSpec {
       for {
         _            <- selector.select
         selectedKeys <- selector.selectedKeys
-        _            <- IO.foreach(selectedKeys) { key =>
-                          IO.whenM(safeStatusCheck(key.isAcceptable)) {
+        _            <- ZIO.foreach(selectedKeys) { key =>
+                          ZIO.whenZIO(safeStatusCheck(key.isAcceptable)) {
                             for {
                               clientOpt <- channel.accept
                               client     = clientOpt.get
@@ -50,7 +50,7 @@ object SelectorSpec extends BaseSpec {
                               _         <- client.register(selector, Operation.Read)
                             } yield ()
                           } *>
-                            IO.whenM(safeStatusCheck(key.isReadable)) {
+                            ZIO.whenZIO(safeStatusCheck(key.isReadable)) {
                               for {
                                 sClient <- key.channel
                                 client   = new SocketChannel(sClient.asInstanceOf[JSocketChannel])

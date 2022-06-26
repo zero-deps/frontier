@@ -3,14 +3,14 @@ package zio.nio.channels
 import zio.nio._
 import zio.nio.core.{ Buffer, SocketAddress }
 import zio.test.Assertion._
-import zio.test.{ suite, testM, _ }
+import zio.test.{ suite, _ }
 import zio._
 
 object DatagramChannelSpec extends BaseSpec {
 
   override def spec =
     suite("DatagramChannelSpec")(
-      testM("read/write") {
+      test("read/write") {
         def echoServer(started: Promise[Nothing, SocketAddress]): IO[Exception, Unit] =
           for {
             address <- SocketAddress.inetSocketAddress(0)
@@ -19,7 +19,7 @@ object DatagramChannelSpec extends BaseSpec {
                          .bind(Some(address))
                          .use { server =>
                            for {
-                             addr       <- server.localAddress.flatMap(opt => IO.effect(opt.get).orDie)
+                             addr       <- server.localAddress.flatMap(opt => ZIO.attempt(opt.get).orDie)
                              _          <- started.succeed(addr)
                              retAddress <- server.receive(sink)
                              addr       <- ZIO.fromOption(retAddress)
@@ -52,9 +52,9 @@ object DatagramChannelSpec extends BaseSpec {
           same          <- echoClient(addr)
         } yield assert(same)(isTrue)
       },
-      testM("close channel unbind port") {
+      test("close channel unbind port") {
         def client(address: SocketAddress): IO[Exception, Unit] =
-          DatagramChannel.connect(address).use_(UIO.unit)
+          DatagramChannel.connect(address).useDiscard(ZIO.unit)
 
         def server(
           address: SocketAddress,
@@ -65,7 +65,7 @@ object DatagramChannelSpec extends BaseSpec {
                         .bind(Some(address))
                         .use { server =>
                           for {
-                            addr <- server.localAddress.flatMap(opt => IO.effect(opt.get).orDie)
+                            addr <- server.localAddress.flatMap(opt => ZIO.attempt(opt.get).orDie)
                             _    <- started.succeed(addr)
                           } yield ()
                         }

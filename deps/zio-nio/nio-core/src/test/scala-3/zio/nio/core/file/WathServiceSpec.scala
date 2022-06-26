@@ -9,7 +9,7 @@ object WathServiceSpec extends BaseSpec {
 
   override def spec =
     suite("WatchServiceSpec")(
-      testM("Watch Service register")(
+      test("Watch Service register")(
         for {
           watchService <- FileSystem.default.newWatchService
           watchKey     <- Path("deps/zio-nio/nio-core/src/test/resources").register(watchService, ENTRY_CREATE)

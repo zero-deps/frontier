@@ -12,7 +12,7 @@ trait ScatteringByteChannel extends Channel {
   override protected[channels] val channel: JScatteringByteChannel
 
   final def readBuffer(dsts: List[Buffer[Byte]]): IO[Exception, Option[Long]] =
-    IO.effect(channel.read(unwrap(dsts)).eofCheck).refineToOrDie[Exception]
+    ZIO.attempt(channel.read(unwrap(dsts)).eofCheck).refineToOrDie[Exception]
 
   final def readBuffer(dst: Buffer[Byte]): IO[Exception, Option[Long]] = readBuffer(List(dst))
 
@@ -21,7 +21,7 @@ trait ScatteringByteChannel extends Channel {
       buffer    <- Buffer.byte(capacity)
       readCount <- readBuffer(buffer)
       _         <- buffer.flip
-      chunk     <- readCount.map(count => buffer.getChunk(count.toInt)).getOrElse(UIO.succeed(Chunk.empty))
+      chunk     <- readCount.map(count => buffer.getChunk(count.toInt)).getOrElse(ZIO.succeed(Chunk.empty))
     } yield chunk
 
   private def unwrap(dsts: List[Buffer[Byte]]): Array[JByteBuffer] =

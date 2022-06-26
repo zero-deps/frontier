@@ -13,11 +13,11 @@ val app =
 
 val httpHandler: HttpHandler[ZEnv] =
   case UpgradeRequest(r) if r.req.path == "/wsecho" =>
-    IO.succeed(WsResp(r, wsHandler))
+    ZIO.succeed(WsResp(r, wsHandler))
   case _ =>
-    IO.succeed(Response.empty(404))
+    ZIO.succeed(Response.empty(404))
 
 val wsHandler: WsHandler[WsContext & ZEnv] =
   case msg: Binary => Ws.send(msg)
   case _: Close => Ws.close()
-  case _ => IO.unit
+  case _ => ZIO.unit

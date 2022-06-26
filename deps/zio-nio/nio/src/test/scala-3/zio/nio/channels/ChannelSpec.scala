@@ -2,7 +2,7 @@ package zio.nio.channels
 
 import zio.nio.BaseSpec
 import zio.nio.core.{ Buffer, SocketAddress }
-import zio.test.{ suite, testM }
+import zio.test.suite
 import zio.{ IO, _ }
 import zio.test._
 import zio.test.Assertion._
@@ -12,7 +12,7 @@ object ChannelSpec extends BaseSpec {
 
   override def spec =
     suite("ChannelSpec")(
-      testM("read/write") {
+      test("read/write") {
         def echoServer(started: Promise[Nothing, SocketAddress]): IO[Exception, Unit] =
           for {
             address <- SocketAddress.inetSocketAddress(0)
@@ -20,7 +20,7 @@ object ChannelSpec extends BaseSpec {
             _       <- AsynchronousServerSocketChannel().use { server =>
                          for {
                            _    <- server.bind(address)
-                           addr <- server.localAddress.flatMap(opt => IO.effect(opt.get).orDie)
+                           addr <- server.localAddress.flatMap(opt => ZIO.attempt(opt.get).orDie)
                            _    <- started.succeed(addr)
                            _    <- server.accept.use { worker =>
                                      worker.readBuffer(sink) *>
@@ -54,14 +54,14 @@ object ChannelSpec extends BaseSpec {
           same          <- echoClient(addr)
         } yield assert(same)(isTrue)
       },
-      testM("read should fail when connection close") {
+      test("read should fail when connection close") {
         def server(started: Promise[Nothing, SocketAddress]): IO[Exception, Fiber[Exception, Boolean]] =
           for {
             address <- SocketAddress.inetSocketAddress(0)
             result  <- AsynchronousServerSocketChannel().use { server =>
                          for {
                            _      <- server.bind(address)
-                           addr   <- server.localAddress.flatMap(opt => IO.effect(opt.get).orDie)
+                           addr   <- server.localAddress.flatMap(opt => ZIO.attempt(opt.get).orDie)
                            _      <- started.succeed(addr)
                            result <- server.accept
                                        .use(worker => worker.read(3) *> worker.read(3) *> ZIO.succeed(false))
@@ -91,7 +91,7 @@ object ChannelSpec extends BaseSpec {
           same          <- serverFiber.join
         } yield assert(same)(isTrue)
       },
-      testM("close channel unbind port") {
+      test("close channel unbind port") {
         def client(address: SocketAddress): IO[Exception, Unit] =
           AsynchronousSocketChannel().use(_.connect(address).unit)
 
@@ -103,7 +103,7 @@ object ChannelSpec extends BaseSpec {
             worker <- AsynchronousServerSocketChannel().use { server =>
                         for {
                           _      <- server.bind(address)
-                          addr   <- server.localAddress.flatMap(opt => IO.effect(opt.get).orDie)
+                          addr   <- server.localAddress.flatMap(opt => ZIO.attempt(opt.get).orDie)
                           _      <- started.succeed(addr)
                           worker <- server.accept.use(_ => ZIO.unit)
                         } yield worker
@@ -125,12 +125,12 @@ object ChannelSpec extends BaseSpec {
         } yield assertCompletes
       },
       // this would best be tagged as an regression test. for now just run manually when suspicious.
-      testM("accept should not leak resources") {
+      test("accept should not leak resources") {
         val server          = for {
-          addr    <- SocketAddress.inetSocketAddress(8081).toManaged_
+          addr    <- SocketAddress.inetSocketAddress(8081).toManaged
           channel <- AsynchronousServerSocketChannel()
-          _       <- channel.bind(addr).toManaged_
-          _       <- AsynchronousSocketChannel().use(channel => channel.connect(addr)).forever.toManaged_.fork
+          _       <- channel.bind(addr).toManaged
+          _       <- AsynchronousSocketChannel().use(channel => channel.connect(addr)).forever.toManaged.fork
         } yield channel
         val interruptAccept = server.use(
           _.accept
@@ -138,7 +138,7 @@ object ChannelSpec extends BaseSpec {
             .catchSomeCause { case Cause.Interrupt(_) => ZIO.unit }
             .repeat(Schedule.recurs(20000))
         )
-        assertM(interruptAccept.run)(succeeds(equalTo(20000L)))
+        assertM(interruptAccept.exit)(succeeds(equalTo(20000L)))
       } @@ ignore
     )
 }

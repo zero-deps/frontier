@@ -10,15 +10,15 @@ private val rnd = SecureRandom()
 
 def newid: UIO[Array[Byte]] =
   for
-    xs <- UIO.succeed(new Array[Byte](32))
-    _ <- UIO.succeed(rnd.nextBytes(xs))
-    r <- IO.effectTotal(xs.hex)
+    xs <- ZIO.succeed(new Array[Byte](32))
+    _ <- ZIO.succeed(rnd.nextBytes(xs))
+    r <- ZIO.succeed(xs.hex)
   yield r
 
 def newid_utf8: UIO[String] =
   for
     x <- newid
-    r <- IO.effectTotal(x.utf8)
+    r <- ZIO.succeed(x.utf8)
   yield r
 
 def _newid: Array[Byte] =

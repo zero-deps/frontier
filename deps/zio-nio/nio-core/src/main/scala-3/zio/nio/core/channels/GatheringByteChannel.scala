@@ -10,13 +10,13 @@ trait GatheringByteChannel extends Channel {
   override protected[channels] val channel: JGatheringByteChannel
 
   final def writeBuffer(srcs: List[Buffer[Byte]]): IO[Exception, Long] =
-    IO.effect(channel.write(unwrap(srcs))).refineToOrDie[Exception]
+    ZIO.attempt(channel.write(unwrap(srcs))).refineToOrDie[Exception]
 
   final def writeBuffer(src: Buffer[Byte]): IO[Exception, Long] = writeBuffer(List(src))
 
   final def write(srcs: List[Chunk[Byte]]): IO[Exception, Long] =
     for {
-      bs <- IO.collectAll(srcs.map(Buffer.byte(_)))
+      bs <- ZIO.collectAll(srcs.map(Buffer.byte(_)))
       r  <- writeBuffer(bs)
     } yield r
 

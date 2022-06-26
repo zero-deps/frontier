@@ -9,10 +9,10 @@ import zio.{ IO, UIO }
 class Pipe(private val pipe: JPipe) {
 
   final val source: UIO[Pipe.SourceChannel] =
-    IO.effectTotal(new channels.Pipe.SourceChannel(pipe.source()))
+    ZIO.succeed(new channels.Pipe.SourceChannel(pipe.source()))
 
   final val sink: UIO[Pipe.SinkChannel] =
-    IO.effectTotal(new Pipe.SinkChannel(pipe.sink()))
+    ZIO.succeed(new Pipe.SinkChannel(pipe.sink()))
 }
 
 object Pipe {
@@ -26,5 +26,5 @@ object Pipe {
       with SelectableChannel
 
   final val open: IO[IOException, Pipe] =
-    IO.effect(new Pipe(JPipe.open())).refineToOrDie[IOException]
+    ZIO.attempt(new Pipe(JPipe.open())).refineToOrDie[IOException]
 }

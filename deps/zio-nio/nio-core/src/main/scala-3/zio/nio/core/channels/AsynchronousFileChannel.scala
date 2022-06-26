@@ -16,7 +16,7 @@ import scala.concurrent.ExecutionContextExecutorService
 class AsynchronousFileChannel(protected val channel: JAsynchronousFileChannel) extends Channel {
 
   final def force(metaData: Boolean): IO[IOException, Unit] =
-    IO.effect(channel.force(metaData)).refineToOrDie[IOException]
+    ZIO.attempt(channel.force(metaData)).refineToOrDie[IOException]
 
   final def lock(position: Long = 0L, size: Long = Long.MaxValue, shared: Boolean = false): IO[Exception, FileLock] =
     effectAsyncWithCompletionHandler[JFileLock](channel.lock(position, size, shared, (), _))
@@ -38,13 +38,13 @@ class AsynchronousFileChannel(protected val channel: JAsynchronousFileChannel) e
     } yield Chunk.fromArray(a).take(math.max(count, 0))
 
   final val size: IO[IOException, Long] =
-    IO.effect(channel.size()).refineToOrDie[IOException]
+    ZIO.attempt(channel.size()).refineToOrDie[IOException]
 
   final def truncate(size: Long): IO[Exception, Unit] =
-    IO.effect(channel.truncate(size)).refineToOrDie[Exception].unit
+    ZIO.attempt(channel.truncate(size)).refineToOrDie[Exception].unit
 
   final def tryLock(position: Long = 0L, size: Long = Long.MaxValue, shared: Boolean = false): IO[Exception, FileLock] =
-    IO.effect(new FileLock(channel.tryLock(position, size, shared))).refineToOrDie[Exception]
+    ZIO.attempt(new FileLock(channel.tryLock(position, size, shared))).refineToOrDie[Exception]
 
   final private[nio] def writeBuffer(src: ByteBuffer, position: Long): IO[Exception, Int] =
     src.withJavaBuffer { buf =>
@@ -63,7 +63,7 @@ class AsynchronousFileChannel(protected val channel: JAsynchronousFileChannel) e
 object AsynchronousFileChannel {
 
   def open(file: Path, options: OpenOption*): IO[Exception, AsynchronousFileChannel] =
-    IO.effect(
+    ZIO.attempt(
       new AsynchronousFileChannel(JAsynchronousFileChannel.open(file.javaPath, options *))
     ).refineToOrDie[Exception]
 
@@ -73,7 +73,7 @@ object AsynchronousFileChannel {
     executor: Option[ExecutionContextExecutorService],
     attrs: Set[FileAttribute[?]]
   ): IO[Exception, AsynchronousFileChannel] =
-    IO.effect(
+    ZIO.attempt(
       new AsynchronousFileChannel(
         JAsynchronousFileChannel.open(file.javaPath, options.asJava, executor.orNull, attrs.toSeq *)
       )

@@ -20,9 +20,9 @@ final class FileLock private[channels] (javaLock: JFileLock) {
 
   def overlaps(position: Long, size: Long): Boolean = javaLock.overlaps(position, size)
 
-  def isValid: UIO[Boolean] = UIO.effectTotal(javaLock.isValid())
+  def isValid: UIO[Boolean] = ZIO.succeed(javaLock.isValid())
 
-  def release: IO[IOException, Unit] = IO.effect(javaLock.release()).refineToOrDie[IOException]
+  def release: IO[IOException, Unit] = ZIO.attempt(javaLock.release()).refineToOrDie[IOException]
 }
 
 object FileLock {

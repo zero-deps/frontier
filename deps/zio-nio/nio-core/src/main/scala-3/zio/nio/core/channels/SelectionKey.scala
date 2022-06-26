@@ -36,53 +36,53 @@ class SelectionKey(private[nio] val selectionKey: JSelectionKey) {
   import SelectionKey.*
 
   final val channel: UIO[JSelectableChannel] =
-    IO.effectTotal(selectionKey.channel())
+    ZIO.succeed(selectionKey.channel())
 
   final val selector: UIO[Selector] =
-    IO.effectTotal(selectionKey.selector()).map(new Selector(_))
+    ZIO.succeed(selectionKey.selector()).map(new Selector(_))
 
   final val isValid: UIO[Boolean] =
-    IO.effectTotal(selectionKey.isValid)
+    ZIO.succeed(selectionKey.isValid)
 
   final val cancel: UIO[Unit] =
-    IO.effectTotal(selectionKey.cancel())
+    ZIO.succeed(selectionKey.cancel())
 
   final val interestOps: IO[CancelledKeyException, Set[Operation]] =
-    IO.effect(selectionKey.interestOps())
+    ZIO.attempt(selectionKey.interestOps())
       .map(Operation.fromInt(_))
       .refineToOrDie[CancelledKeyException]
 
   final def interestOps(ops: Set[Operation]): IO[CancelledKeyException, Unit] =
-    IO.effect(selectionKey.interestOps(Operation.toInt(ops)))
+    ZIO.attempt(selectionKey.interestOps(Operation.toInt(ops)))
       .unit
       .refineToOrDie[CancelledKeyException]
 
   final val readyOps: IO[CancelledKeyException, Set[Operation]] =
-    IO.effect(selectionKey.readyOps())
+    ZIO.attempt(selectionKey.readyOps())
       .map(Operation.fromInt(_))
       .refineToOrDie[CancelledKeyException]
 
   final def isReadable: IO[CancelledKeyException, Boolean] =
-    IO.effect(selectionKey.isReadable()).refineOrDie(JustCancelledKeyException)
+    ZIO.attempt(selectionKey.isReadable()).refineOrDie(JustCancelledKeyException)
 
   final def isWritable: IO[CancelledKeyException, Boolean] =
-    IO.effect(selectionKey.isWritable()).refineOrDie(JustCancelledKeyException)
+    ZIO.attempt(selectionKey.isWritable()).refineOrDie(JustCancelledKeyException)
 
   final def isConnectable: IO[CancelledKeyException, Boolean] =
-    IO.effect(selectionKey.isConnectable()).refineOrDie(JustCancelledKeyException)
+    ZIO.attempt(selectionKey.isConnectable()).refineOrDie(JustCancelledKeyException)
 
   final def isAcceptable: IO[CancelledKeyException, Boolean] =
-    IO.effect(selectionKey.isAcceptable()).refineOrDie(JustCancelledKeyException)
+    ZIO.attempt(selectionKey.isAcceptable()).refineOrDie(JustCancelledKeyException)
 
   final def attach(ob: Option[AnyRef]): UIO[Option[AnyRef]] =
-    IO.effectTotal(Option(selectionKey.attach(ob.orNull)))
+    ZIO.succeed(Option(selectionKey.attach(ob.orNull)))
 
   final def attach(ob: AnyRef): UIO[AnyRef] =
-    IO.effectTotal(selectionKey.attach(ob))
+    ZIO.succeed(selectionKey.attach(ob))
 
   final val detach: UIO[Unit] =
-    IO.effectTotal(selectionKey.attach(null)).map(_ => ())
+    ZIO.succeed(selectionKey.attach(null)).map(_ => ())
 
   final val attachment: UIO[Option[AnyRef]] =
-    IO.effectTotal(selectionKey.attachment()).map(Option(_))
+    ZIO.succeed(selectionKey.attachment()).map(Option(_))
 }

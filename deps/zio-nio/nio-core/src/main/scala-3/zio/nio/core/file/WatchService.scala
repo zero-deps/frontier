@@ -11,8 +11,8 @@ import java.nio.file.{
 }
 import java.util.concurrent.TimeUnit
 
-import zio.blocking.Blocking
-import zio.duration.Duration
+
+import zio.Duration
 
 import scala.jdk.CollectionConverters.*
 import zio.{ IO, UIO, ZIO }
@@ -21,14 +21,14 @@ trait Watchable {
   protected def javaWatchable: JWatchable
 
   final def register(watcher: WatchService, events: WatchEvent.Kind[?]*): IO[Exception, WatchKey] =
-    IO.effect(new WatchKey(javaWatchable.register(watcher.javaWatchService, events *))).refineToOrDie[Exception]
+    ZIO.attempt(new WatchKey(javaWatchable.register(watcher.javaWatchService, events *))).refineToOrDie[Exception]
 
   final def register(
     watcher: WatchService,
     events: Iterable[WatchEvent.Kind[?]],
     modifiers: WatchEvent.Modifier*
   ): IO[Exception, WatchKey] =
-    IO.effect(new WatchKey(javaWatchable.register(watcher.javaWatchService, events.toArray, modifiers *)))
+    ZIO.attempt(new WatchKey(javaWatchable.register(watcher.javaWatchService, events.toArray, modifiers *)))
       .refineToOrDie[Exception]
 }
 
@@ -41,34 +41,34 @@ object Watchable {
 }
 
 final class WatchKey private[file] (private val javaKey: JWatchKey) {
-  def isValid: UIO[Boolean] = UIO.effectTotal(javaKey.isValid)
+  def isValid: UIO[Boolean] = ZIO.succeed(javaKey.isValid)
 
-  def pollEvents: UIO[List[WatchEvent[?]]] = UIO.effectTotal(javaKey.pollEvents().asScala.toList)
+  def pollEvents: UIO[List[WatchEvent[?]]] = ZIO.succeed(javaKey.pollEvents().asScala.toList)
 
-  def reset: UIO[Boolean] = UIO.effectTotal(javaKey.reset())
+  def reset: UIO[Boolean] = ZIO.succeed(javaKey.reset())
 
-  def cancel: UIO[Unit] = UIO.effectTotal(javaKey.cancel())
+  def cancel: UIO[Unit] = ZIO.succeed(javaKey.cancel())
 
   def watchable: UIO[Watchable] =
-    UIO.effectTotal(javaKey.watchable()).map {
+    ZIO.succeed(javaKey.watchable()).map {
       case javaPath: JPath => Path.fromJava(javaPath)
       case javaWatchable   => Watchable(javaWatchable)
     }
 }
 
 final class WatchService private (private[file] val javaWatchService: JWatchService) {
-  def close: IO[IOException, Unit] = IO.effect(javaWatchService.close()).refineToOrDie[IOException]
+  def close: IO[IOException, Unit] = ZIO.attempt(javaWatchService.close()).refineToOrDie[IOException]
 
   def poll: IO[ClosedWatchServiceException, Option[WatchKey]] =
-    IO.effect(Option(javaWatchService.poll()).map(new WatchKey(_))).refineToOrDie[ClosedWatchServiceException]
+    ZIO.attempt(Option(javaWatchService.poll()).map(new WatchKey(_))).refineToOrDie[ClosedWatchServiceException]
 
   def poll(timeout: Duration): IO[Exception, Option[WatchKey]] =
-    IO.effect(Option(javaWatchService.poll(timeout.toNanos, TimeUnit.NANOSECONDS)).map(new WatchKey(_)))
+    ZIO.attempt(Option(javaWatchService.poll(timeout.toNanos, TimeUnit.NANOSECONDS)).map(new WatchKey(_)))
       .refineToOrDie[Exception]
 
   def take: ZIO[Blocking, Exception, WatchKey] =
     ZIO
-      .accessM[Blocking](_.get.effectBlocking(new WatchKey(javaWatchService.take())))
+      .environmentWithZIO[Blocking](_.get.effectBlocking(new WatchKey(javaWatchService.take())))
       .refineToOrDie[Exception]
 }
 
