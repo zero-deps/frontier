@@ -28,12 +28,12 @@ case class WsContextData(
   , sendClose: CloseStatus => Task[Unit]
   , uuid: String
   )
-type WsContext = Has[WsContextData]
+type WsContext = WsContextData
 
 object Ws {
-  def req: URIO[WsContext, Request] = ZIO.access(_.get.req)
-  def send(msg: Msg): URIO[WsContext, Unit] = ZIO.accessM(_.get.send(msg))
-  def close(status: CloseStatus = CLOSE_NORMAL): URIO[WsContext, Unit] = ZIO.accessM(_.get.sendClose(status).orDie)
+  def req: URIO[WsContext, Request] = ZIO.serviceWith(_.req)
+  def send(msg: Msg): URIO[WsContext, Unit] = ZIO.environmentWithZIO(_.get.send(msg))
+  def close(status: CloseStatus = CLOSE_NORMAL): URIO[WsContext, Unit] = ZIO.environmentWithZIO(_.get.sendClose(status).orDie)
 }
 
 def getNum(from: Int, size: Int, chunk: Chunk[Byte]): Option[Long] = {
@@ -83,19 +83,19 @@ def processMask(mask: Boolean, maskN: Int, payload: Chunk[Byte]): Chunk[Byte] = 
 }
 
 def read(opcode: Int, payload: Chunk[Byte], fin: Boolean, fragmentsOpcode: Option[Int]): Task[Msg] = (opcode, fragmentsOpcode) match {
-  case (0x0, Some(0x1)) => Task.succeed(Text(new String(payload.toArray), fin))
-  case (0x0, Some(0x2)) => Task.succeed(Binary(payload, fin))
-  case (0x1, _) => Task.succeed(Text(new String(payload.toArray), fin))
-  case (0x2, _) => Task.succeed(Binary(payload, fin))
+  case (0x0, Some(0x1)) => ZIO.succeed(Text(new String(payload.toArray), fin))
+  case (0x0, Some(0x2)) => ZIO.succeed(Binary(payload, fin))
+  case (0x1, _) => ZIO.succeed(Text(new String(payload.toArray), fin))
+  case (0x2, _) => ZIO.succeed(Binary(payload, fin))
   case (0x8, _) =>
     for status <- 
-      if payload.length >= 2 then Buffer.byte(payload.take(2)) >>= { _.getShort }
-      else IO.succeed(CLOSED_NO_STATUS)
+      if payload.length >= 2 then Buffer.byte(payload.take(2)) flatMap { _.getShort }
+      else ZIO.succeed(CLOSED_NO_STATUS)
     yield Close(status)
-  case (0x9, _) => Task.succeed(Ping)
-  case (0xA, _) => Task.succeed(Pong)
-  case (0xF, _) => Task.succeed(Open)
-  case (_  , _) => Task.succeed(Unknown(opcode, payload))
+  case (0x9, _) => ZIO.succeed(Ping)
+  case (0xA, _) => ZIO.succeed(Pong)
+  case (0xF, _) => ZIO.succeed(Open)
+  case (_  , _) => ZIO.succeed(Unknown(opcode, payload))
 }
 
 def write(msg: Msg): Task[ByteBuffer] = {
@@ -160,7 +160,7 @@ def upgrade(key: String): UIO[Response] = {
   crypt.update((key + guid).getBytes("utf8").nn)
   val sha1 = crypt.digest()
   val accept = String(Base64.getEncoder().nn.encode(sha1))
-  IO.succeed(Response(101, Seq(
+  ZIO.succeed(Response(101, Seq(
     "Upgrade" -> "websocket"
   , "Connection" -> "Upgrade"
   , "Sec-WebSocket-Accept" -> accept

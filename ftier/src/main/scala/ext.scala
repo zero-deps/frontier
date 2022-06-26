@@ -5,11 +5,11 @@ import scala.reflect.ClassTag
 
 def md5(xs: Array[Byte]): Task[String] =
   import java.security.MessageDigest
-  IO.effect(MessageDigest.getInstance("md5").nn).map(_.digest(xs).nn).map(_.hex.utf8)
+  ZIO.attempt(MessageDigest.getInstance("md5").nn).map(_.digest(xs).nn).map(_.hex.utf8)
 
 def uuid(): String = java.util.UUID.randomUUID().toString
 
-extension [A](a: A | Null)
+extension [A](a: A)// | Null)
   inline def toOption: Option[A] = if a == null then None else Some(a)
 
 extension (xs: Array[Byte])

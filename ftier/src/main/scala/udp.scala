@@ -1,7 +1,7 @@
 package ftier
 package udp
 
-import zio.*, console.*
+import zio.*, managed.*
 import zio.nio.*, channels.{Channel as _, *}, core.*
 
 import ext.{*, given}
@@ -27,23 +27,23 @@ class Bind
   , val localAddress: IO[Nothing, SocketAddress]
   )
 
-type Udp = Has[Udp.Service]
+type Udp = Udp.Service
 
 object Udp {
   trait Service {
-    def bind(localAddr: SocketAddress)(connectionHandler: ChannelRead => IO[Nothing, Unit]): Managed[Nothing, Bind]
-    def connect(to: SocketAddress): Managed[Nothing, ChannelWrite]
+    def bind(localAddr: SocketAddress)(connectionHandler: ChannelRead => IO[Nothing, Unit]): ZManaged[Any, Nothing, Bind]
+    def connect(to: SocketAddress): ZManaged[Any, Nothing, ChannelWrite]
   }
 
-  def live(mtu: Int): ZLayer[ZEnv, Nothing, Udp] = ZLayer.fromFunction{ env =>
+  def live(mtu: Int): ZLayer[Any, Nothing, Udp] = ZLayer.succeed{
     new Udp.Service {
-      def bind(addr: SocketAddress)(connectionHandler: ChannelRead => IO[Nothing, Unit]): Managed[Nothing, Bind] =
+      def bind(addr: SocketAddress)(connectionHandler: ChannelRead => IO[Nothing, Unit]): ZManaged[Any, Nothing, Bind] =
         DatagramChannel
           .bind(Some(addr))
           .orDie
           .withEarlyRelease
           // .onExit(x => putStrLn(s"shutting down server=$x"))
-          .mapM {
+          .mapZIO {
             case (close, server) =>
               Buffer
                 .byte(mtu)
@@ -58,12 +58,12 @@ object Udp {
                           ChannelRead(
                             for {
                               rem <- buffer.remaining
-                              h   <- IO.require(NoAddr)(IO.succeed(addr.inetSocketAddress.map(_.hostString)))
+                              h   <- ZIO.succeed(addr.inetSocketAddress.map(_.hostString)).someOrFail(NoAddr)
                               x   <- buffer.getChunk(rem).orDie
                             } yield h -> x
                           )
                         case None =>
-                          ChannelRead(IO.fail(NoAddr))
+                          ChannelRead(ZIO.fail(NoAddr))
                       }
                       .flatMap(conn =>
                         connectionHandler(conn)
@@ -73,17 +73,17 @@ object Udp {
                 .fork
                 .as {
                   val local = server.localAddress
-                    .flatMap(opt => IO.effect(opt.get).orDie)
+                    .flatMap(opt => ZIO.attempt(opt.get).orDie)
                     .orDie
                   Bind(server.isOpen, close.unit, local)
                 }
           }
           // .provide(env)
 
-      def connect(to: SocketAddress): Managed[Nothing, ChannelWrite] =
+      def connect(to: SocketAddress): ZManaged[Any, Nothing, ChannelWrite] =
         DatagramChannel
           .connect(to)
-          .mapM(
+          .mapZIO(
             channel =>
               ChannelWrite.withLock(
                 channel.write(_).orDie.unit
@@ -95,7 +95,7 @@ object Udp {
 }
 
 def bind[R <: Udp](localAddr: SocketAddress)(connectionHandler: ChannelRead => ZIO[R, Nothing, Unit]): ZManaged[R, Nothing, Bind] = {
-  ZManaged.environment[R].flatMap(env => env.get[Udp.Service].bind(localAddr)(conn => connectionHandler(conn).provide(env)))
+  ZManaged.environment[R].flatMap(env => env.get[Udp.Service].bind(localAddr)(conn => connectionHandler(conn).provideEnvironment(env)))
 }
 
 def connect(to: SocketAddress): ZManaged[Udp, Nothing, ChannelWrite] =

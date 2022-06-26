@@ -2,46 +2,47 @@ package ftier
 package http
 package client
 
-import zio.*, blocking.*, stream.*
+import zio.*, stream.*
 import java.net.http.{HttpClient, HttpRequest}
 import java.net.http.HttpResponse.BodyHandlers
 import java.net.URI
 import java.time.Duration
 
 import ext.{*, given}
+import zio.ZIO.attemptBlocking
 
 case object Timeout
 type Err = Timeout.type
 
-def send(cp: ConnectionPool, request: Request): ZIO[Blocking, Err, Response] = for {
-  uri  <- IO.effect(URI(request.url)).orDie
-  reqb <- IO.effect(HttpRequest.newBuilder(uri).nn.method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.bodyAsBytes)).nn).orDie
-  _    <- if request.headers.nonEmpty then IO.effect(reqb.headers(request.headers.toList.flatMap(x => x._1 :: x._2 :: Nil) *)).orDie else IO.unit
-  req  <- IO.effect(reqb.build()).orDie
+def send(cp: ConnectionPool, request: Request): IO[Err, Response] = for {
+  uri  <- ZIO.attempt(URI(request.url)).orDie
+  reqb <- ZIO.attempt(HttpRequest.newBuilder(uri).nn.method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.bodyAsBytes)).nn).orDie
+  _    <- if request.headers.nonEmpty then ZIO.attempt(reqb.headers(request.headers.toList.flatMap(x => x._1 :: x._2 :: Nil) *)).orDie else ZIO.unit
+  req  <- ZIO.attempt(reqb.build()).orDie
   resp <-
-    (effectBlocking(cp.client.send(req, BodyHandlers.ofByteArray()).nn).map(resp =>
+    (attemptBlocking(cp.client.send(req, BodyHandlers.ofByteArray()).nn).map(resp =>
       Response(resp.statusCode().nn, Nil, BodyChunk(Chunk.fromArray(resp.body().nn)))
     ).catchAll(e => e.getCause.toOption match
-        case Some(e1: java.net.http.HttpConnectTimeoutException) => IO.fail(Timeout)
-        case Some(e1) => IO.die(e1)
-        case None => IO.die(e)
-    ): ZIO[Blocking, Err, Response])
+        case Some(e1: java.net.http.HttpConnectTimeoutException) => ZIO.fail(Timeout)
+        case Some(e1) => ZIO.die(e1)
+        case None => ZIO.die(e)
+    ): IO[Err, Response])
 } yield resp
 
 def sendAsync(cp: ConnectionPool, request: Request): IO[Err, Response] = {
   import scala.jdk.FutureConverters.*
   for {
-    uri  <- IO.effect(URI(request.url)).orDie
-    reqb <- IO.effect(HttpRequest.newBuilder(uri).nn.method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.bodyAsBytes)).nn).orDie
-    _    <- if request.headers.nonEmpty then IO.effect(reqb.headers(request.headers.toList.flatMap(x => x._1 :: x._2 :: Nil) *)).orDie else IO.unit
-    req  <- IO.effect(reqb.build()).orDie
+    uri  <- ZIO.attempt(URI(request.url)).orDie
+    reqb <- ZIO.attempt(HttpRequest.newBuilder(uri).nn.method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.bodyAsBytes)).nn).orDie
+    _    <- if request.headers.nonEmpty then ZIO.attempt(reqb.headers(request.headers.toList.flatMap(x => x._1 :: x._2 :: Nil) *)).orDie else ZIO.unit
+    req  <- ZIO.attempt(reqb.build()).orDie
     resp <-
       (ZIO.fromFuture(_ => cp.client.sendAsync(req, BodyHandlers.ofByteArray()).nn.asScala).map(resp =>
         Response(resp.statusCode().nn, Nil, BodyChunk(Chunk.fromArray(resp.body().nn)))
       ).catchAll(e => e.getCause.toOption match
-          case Some(e1: java.net.http.HttpConnectTimeoutException) => IO.fail(Timeout)
-          case Some(e1) => IO.die(e1)
-          case None => IO.die(e)
+          case Some(e1: java.net.http.HttpConnectTimeoutException) => ZIO.fail(Timeout)
+          case Some(e1) => ZIO.die(e1)
+          case None => ZIO.die(e)
       ): IO[Err, Response])
   } yield resp
 }
@@ -49,7 +50,7 @@ def sendAsync(cp: ConnectionPool, request: Request): IO[Err, Response] = {
 case class ConnectionPool(client: HttpClient)
 
 val connectionPool: UIO[ConnectionPool] = 
-  IO.succeed(ConnectionPool(
+  ZIO.succeed(ConnectionPool(
     HttpClient.newBuilder().nn
       .version(HttpClient.Version.HTTP_1_1).nn
       .followRedirects(HttpClient.Redirect.NORMAL).nn
