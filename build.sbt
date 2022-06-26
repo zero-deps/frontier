@@ -1,23 +1,23 @@
 lazy val `ftier-root` = project
   .in(file("."))
-  .aggregate(ftier, /*bot, */demo, benchmark)
+  .aggregate(ftier/*, bot, demo, benchmark*/)
 
 lazy val ftier = project
   .in(file("ftier"))
   .settings(
     scalaVersion := "3.2.0-RC1"
   , libraryDependencies ++= Seq(
-      "dev.zio" %% "zio-test-sbt" % "1.0.14" % Test
+      "dev.zio" %% "zio-streams"  % "2.0.0"
+    , "dev.zio" %% "zio-test-sbt" % "2.0.0" % Test
     )
   , testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
   , scalacOptions ++= Seq(
       "-language:postfixOps"
-    , "-language:strictEquality"
-    , "-Yexplicit-nulls"
+    // , "-language:strictEquality"
+    // , "-Yexplicit-nulls"
+    , "-nowarn"
     )
   )
-  .dependsOn(zio_nio)
-  .aggregate(zio_nio, zio_nio_core)
 
 lazy val bot = project
   .in(file("bot"))
@@ -31,33 +31,6 @@ lazy val bot = project
     , "-Yexplicit-nulls"
     )
   ).dependsOn(ftier)
-
-lazy val zio_nio = project
-  .in(file("deps/zio-nio/nio"))
-  .dependsOn(zio_nio_core)
-  .settings(
-    libraryDependencies ++= Seq(
-      "dev.zio" %% "zio-test-sbt" % "1.0.14" % Test
-    )
-  , testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
-  , scalaVersion := "3.2.0-RC1"
-  , scalacOptions ++= Seq(
-      "-nowarn"
-    )
-  )
-  .dependsOn(zio_nio_core)
-
-lazy val zio_nio_core = project
-  .in(file("deps/zio-nio/nio-core"))
-  .settings(
-    libraryDependencies ++= Seq(
-      "dev.zio" %% "zio-streams"  % "1.0.14"
-    , "dev.zio" %% "zio-test-sbt" % "1.0.14" % Test
-    )
-  , testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
-  , scalaVersion := "3.2.0-RC1"
-  , scalacOptions += "-nowarn"
-  )
 
 lazy val demo = project
   .in(file("demo"))
