@@ -2,14 +2,12 @@ package zio.nio.core.channels
 
 import java.io.IOException
 import java.nio.channels.{ FileChannel as JFileChannel }
-import java.nio.file.OpenOption
 import java.nio.file.attribute.FileAttribute
-
+import java.nio.file.OpenOption
+import scala.collection.JavaConverters.*
+import zio.*
 import zio.nio.core.file.Path
 import zio.nio.core.{ ByteBuffer, MappedByteBuffer }
-import zio.*
-
-import scala.collection.JavaConverters.*
 import zio.ZIO.attemptBlocking
 
 final class FileChannel private[channels] (override protected[channels] val channel: JFileChannel)
@@ -45,8 +43,7 @@ final class FileChannel private[channels] (override protected[channels] val chan
       .refineToOrDie[Exception]
 
   def map(mode: JFileChannel.MapMode, position: Long, size: Long): IO[Exception, MappedByteBuffer] =
-    ZIO
-      .environmentWithZIO[Blocking](_.get.effectBlocking(new MappedByteBuffer(channel.map(mode, position, size))))
+    attemptBlocking(new MappedByteBuffer(channel.map(mode, position, size)))
       .refineToOrDie[Exception]
 
   def lock(

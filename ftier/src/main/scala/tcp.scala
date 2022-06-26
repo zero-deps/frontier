@@ -3,7 +3,7 @@ package tcp
 
 import java.nio.channels.{ServerSocketChannel as JServerSocketChannel, SocketChannel as JSocketChannel, CancelledKeyException, ClosedChannelException}
 import java.io.IOException
-import zio.*, nio.*, core.*, core.channels.*
+import zio.*, nio.*, core.*, core.channels.*, managed.*
 
 import ext.{*, given}
 
@@ -24,7 +24,7 @@ def select[R](selector: Selector, f: SelectionKey => RIO[R, Any]): RIO[R, Unit] 
     keys <- selector.selectedKeys
     _ <-
       ZIO.foreach(keys){ key =>
-        Managed.acquireReleaseWith(ZIO.succeed(key))(selector.removeKey(_).ignore).use{ k =>
+        ZManaged.acquireReleaseWith(ZIO.succeed(key))(selector.removeKey(_).ignore).use{ k =>
           ZIO.whenZIO(k.isValid) {
             f(k).catchSome{
               case x: IOException if x.getMessage == "Broken pipe" =>
@@ -118,7 +118,7 @@ def bind(
 ): RIO[Clock, Unit] =
   ServerSocketChannel.open.toManagedWith(_.close.orDie).use{ serverChannel =>
     Selector.make.toManagedWith(_.close.orDie).use{ accessSelector =>
-      Managed.collectAll(
+      ZManaged.collectAll(
         Vector.fill(workers)(Selector.make.toManagedWith(_.close.orDie))
       ).use{ readSelectors =>
         bind(addr, serverChannel, accessSelector, readSelectors.to(Vector), init)

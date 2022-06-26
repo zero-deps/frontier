@@ -16,7 +16,7 @@ import zio.nio.core.{ Buffer, SocketAddress }
 import zio.nio.core.channels.AsynchronousChannelGroup
 import zio.*
 import zio.interop.javaz.*
-import zio._
+import zio.managed.*
 
 class AsynchronousByteChannel(private val channel: JAsynchronousByteChannel) {
 
@@ -25,7 +25,7 @@ class AsynchronousByteChannel(private val channel: JAsynchronousByteChannel) {
    *  read, or -1 if no bytes were read.
    */
   final private[nio] def readBuffer(b: Buffer[Byte]): IO[Exception, Int] =
-    effectAsyncWithCompletionHandler[JInteger](h => channel.read(b.buffer.asInstanceOf[JByteBuffer], (), h))
+    asyncWithCompletionHandler[JInteger](h => channel.read(b.buffer.asInstanceOf[JByteBuffer], (), h))
       .map(_.toInt)
       .refineToOrDie[Exception]
 
@@ -44,7 +44,7 @@ class AsynchronousByteChannel(private val channel: JAsynchronousByteChannel) {
    *  Writes data into this channel from buffer, returning the number of bytes written.
    */
   final private[nio] def writeBuffer(b: Buffer[Byte]): IO[Exception, Int] =
-    effectAsyncWithCompletionHandler[JInteger](h => channel.write(b.buffer.asInstanceOf[JByteBuffer], (), h))
+    asyncWithCompletionHandler[JInteger](h => channel.write(b.buffer.asInstanceOf[JByteBuffer], (), h))
       .map(_.toInt)
       .refineToOrDie[Exception]
 
@@ -89,10 +89,10 @@ class AsynchronousServerSocketChannel(private val channel: JAsynchronousServerSo
   /**
    * Accepts a connection.
    */
-  final val accept: Managed[Exception, AsynchronousSocketChannel] =
-    Managed
+  final val accept: ZManaged[Any, Exception, AsynchronousSocketChannel] =
+    ZManaged
       .acquireReleaseWith(
-        effectAsyncWithCompletionHandler[JAsynchronousSocketChannel](h => channel.accept((), h))
+        asyncWithCompletionHandler[JAsynchronousSocketChannel](h => channel.accept((), h))
           .map(AsynchronousSocketChannel(_))
       )(_.close.orDie)
       .refineToOrDie[Exception]
@@ -123,18 +123,18 @@ class AsynchronousServerSocketChannel(private val channel: JAsynchronousServerSo
 
 object AsynchronousServerSocketChannel {
 
-  def apply(): Managed[Exception, AsynchronousServerSocketChannel] = {
+  def apply(): ZManaged[Any, Exception, AsynchronousServerSocketChannel] = {
     val open = ZIO
       .attempt(JAsynchronousServerSocketChannel.open())
       .refineToOrDie[Exception]
       .map(new AsynchronousServerSocketChannel(_))
 
-    Managed.acquireReleaseWith(open)(_.close.orDie)
+    ZManaged.acquireReleaseWith(open)(_.close.orDie)
   }
 
   def apply(
     channelGroup: AsynchronousChannelGroup
-  ): Managed[Exception, AsynchronousServerSocketChannel] = {
+  ): ZManaged[Any, Exception, AsynchronousServerSocketChannel] = {
     val open = ZIO
       .attempt(
         JAsynchronousServerSocketChannel.open(channelGroup.channelGroup)
@@ -144,7 +144,7 @@ object AsynchronousServerSocketChannel {
       }
       .map(new AsynchronousServerSocketChannel(_))
 
-    Managed.acquireReleaseWith(open)(_.close.orDie)
+    ZManaged.acquireReleaseWith(open)(_.close.orDie)
   }
 }
 
@@ -176,11 +176,11 @@ class AsynchronousSocketChannel(private val channel: JAsynchronousSocketChannel)
     ).refineToOrDie[Exception]
 
   final def connect(socketAddress: SocketAddress): IO[Exception, Unit] =
-    effectAsyncWithCompletionHandler[JVoid](h => channel.connect(socketAddress.jSocketAddress, (), h)).unit
+    asyncWithCompletionHandler[JVoid](h => channel.connect(socketAddress.jSocketAddress, (), h)).unit
       .refineToOrDie[Exception]
 
   final private[nio] def readBuffer[A](dst: Buffer[Byte], timeout: Duration): IO[Exception, Int] =
-    effectAsyncWithCompletionHandler[JInteger] { h =>
+    asyncWithCompletionHandler[JInteger] { h =>
       channel.read(
         dst.buffer.asInstanceOf[JByteBuffer],
         timeout.fold(Long.MaxValue, _.toNanos),
@@ -207,7 +207,7 @@ class AsynchronousSocketChannel(private val channel: JAsynchronousSocketChannel)
     length: Int,
     timeout: Duration
   ): IO[Exception, Long] =
-    effectAsyncWithCompletionHandler[JLong](h =>
+    asyncWithCompletionHandler[JLong](h =>
       channel.read(
         dsts.map(_.buffer.asInstanceOf[JByteBuffer]).toArray,
         offset,
@@ -238,16 +238,16 @@ class AsynchronousSocketChannel(private val channel: JAsynchronousSocketChannel)
 
 object AsynchronousSocketChannel {
 
-  def apply(): Managed[Exception, AsynchronousSocketChannel] = {
+  def apply(): ZManaged[Any, Exception, AsynchronousSocketChannel] = {
     val open = ZIO
       .attempt(JAsynchronousSocketChannel.open())
       .refineToOrDie[Exception]
       .map(new AsynchronousSocketChannel(_))
 
-    Managed.acquireReleaseWith(open)(_.close.orDie)
+    ZManaged.acquireReleaseWith(open)(_.close.orDie)
   }
 
-  def apply(channelGroup: AsynchronousChannelGroup): Managed[Exception, AsynchronousSocketChannel] = {
+  def apply(channelGroup: AsynchronousChannelGroup): ZManaged[Any, Exception, AsynchronousSocketChannel] = {
     val open = ZIO
       .attempt(
         JAsynchronousSocketChannel.open(channelGroup.channelGroup)
@@ -257,7 +257,7 @@ object AsynchronousSocketChannel {
       }
       .map(new AsynchronousSocketChannel(_))
 
-    Managed.acquireReleaseWith(open)(_.close.orDie)
+    ZManaged.acquireReleaseWith(open)(_.close.orDie)
   }
 
   def apply(asyncSocketChannel: JAsynchronousSocketChannel): AsynchronousSocketChannel =

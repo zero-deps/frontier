@@ -322,8 +322,8 @@ object Files {
       .map(Path.fromJava)
   }
 
-  def toInputStream(p: Path): ZManaged[Blocking, Throwable, InputStream] =
-    zio.stream.ZStream.fromFile(p.javaPath).toInputStream
+  def toInputStream(p: Path): ZIO[Scope, Throwable, InputStream] =
+    zio.stream.ZStream.fromPath(p.javaPath).toInputStream
 
 //
 //  def copy(in: ZStream[Any, Exception, Chunk[Byte]], target: Path, options: CopyOption*): IO[Exception, Long] = {

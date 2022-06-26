@@ -4,7 +4,7 @@ import java.io.IOException
 import java.net.{ SocketOption, DatagramSocket as JDatagramSocket, SocketAddress as JSocketAddress }
 import java.nio.channels.{ DatagramChannel as JDatagramChannel }
 
-import zio.*
+import zio.*, managed.*
 import zio.nio.core.{ ByteBuffer, SocketAddress }
 
 /**
@@ -129,7 +129,7 @@ object DatagramChannel {
    * @param local the local address
    * @return a datagram channel bound to the local address
    */
-  def bind(local: Option[SocketAddress]): Managed[IOException, DatagramChannel] =
+  def bind(local: Option[SocketAddress]): ZManaged[Any, IOException, DatagramChannel] =
     open.flatMap(_.bind(local).toManaged)
 
   /**
@@ -138,7 +138,7 @@ object DatagramChannel {
    * @param remote the remote address
    * @return a datagram channel connected to the remote address
    */
-  def connect(remote: SocketAddress): Managed[IOException, DatagramChannel] =
+  def connect(remote: SocketAddress): ZManaged[Any, IOException, DatagramChannel] =
     open.flatMap(_.connect(remote).toManaged)
 
   /**
@@ -147,12 +147,12 @@ object DatagramChannel {
    *
    * @return a new datagram channel
    */
-  private def open: Managed[IOException, DatagramChannel] = {
+  private def open: ZManaged[Any, IOException, DatagramChannel] = {
     val open = ZIO
       .attempt(JDatagramChannel.open())
       .refineToOrDie[IOException]
       .map(new DatagramChannel(_))
 
-    Managed.acquireReleaseWith(open)(_.close.orDie)
+    ZManaged.acquireReleaseWith(open)(_.close.orDie)
   }
 }

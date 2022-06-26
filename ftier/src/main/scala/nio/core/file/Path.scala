@@ -3,11 +3,8 @@ package zio.nio.core.file
 import java.io.{ File, IOError, IOException }
 import java.net.URI
 import java.nio.file.{ LinkOption, Paths, Path as JPath, Watchable as JWatchable }
-
-import zio.ZIO
-
-
 import scala.jdk.CollectionConverters.*
+import zio.*
 
 final class Path private (private[nio] val javaPath: JPath) extends Watchable {
   import Path.*
@@ -43,16 +40,14 @@ final class Path private (private[nio] val javaPath: JPath) extends Watchable {
   def relativize(other: Path): Path = fromJava(javaPath.relativize(other.javaPath))
 
   def toUri: IO[IOError, URI] =
-    ZIO.environmentWithZIO[Blocking](_.get.effectBlocking(javaPath.toUri)).refineToOrDie[IOError]
+    ZIO.attemptBlocking(javaPath.toUri).refineToOrDie[IOError]
 
   def toAbsolutePath: IO[IOError, Path] =
-    ZIO
-      .environmentWithZIO[Blocking](_.get.effectBlocking(fromJava(javaPath.toAbsolutePath)))
+    ZIO.attemptBlocking(fromJava(javaPath.toAbsolutePath))
       .refineToOrDie[IOError]
 
   def toRealPath(linkOptions: LinkOption*): IO[IOException, Path] =
-    ZIO
-      .environmentWithZIO[Blocking](_.get.effectBlocking(fromJava(javaPath.toRealPath(linkOptions *))))
+    ZIO.attemptBlocking(fromJava(javaPath.toRealPath(linkOptions *)))
       .refineToOrDie[IOException]
 
   def toFile: File = javaPath.toFile

@@ -6,7 +6,7 @@ import java.nio.channels.{ ClosedSelectorException, Selector as JSelector, Selec
 import zio.Duration
 import zio.nio.channels.spi.SelectorProvider
 import zio.nio.core.channels.SelectionKey
-import zio.*
+import zio.*, managed.*
 
 import scala.jdk.CollectionConverters.*
 
@@ -57,8 +57,8 @@ class Selector(private[nio] val selector: JSelector) {
 
 object Selector {
 
-  final val make: Managed[IOException, Selector] = {
+  final val make: ZManaged[Any, IOException, Selector] = {
     val open = ZIO.attempt(new Selector(JSelector.open())).refineToOrDie[IOException]
-    Managed.acquireReleaseWith(open)(_.close.orDie)
+    ZManaged.acquireReleaseWith(open)(_.close.orDie)
   }
 }

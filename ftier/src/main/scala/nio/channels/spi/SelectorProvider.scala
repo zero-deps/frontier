@@ -7,7 +7,7 @@ import java.nio.channels.spi.{ SelectorProvider as JSelectorProvider }
 
 import zio.nio.channels.{ Selector, ServerSocketChannel, SocketChannel }
 import zio.nio.core.channels.{ Pipe }
-import zio.*
+import zio.*, managed.*
 
 class SelectorProvider(private val selectorProvider: JSelectorProvider) {
 
@@ -26,7 +26,7 @@ class SelectorProvider(private val selectorProvider: JSelectorProvider) {
   final val openSelector: IO[IOException, Selector] =
     ZIO.attempt(new Selector(selectorProvider.openSelector())).refineToOrDie[IOException]
 
-  final val openServerSocketChannel: Managed[IOException, ServerSocketChannel] =
+  final val openServerSocketChannel: ZManaged[Any, IOException, ServerSocketChannel] =
     ServerSocketChannel.fromJava(selectorProvider.openServerSocketChannel())
 
   final val openSocketChannel: IO[IOException, SocketChannel] =

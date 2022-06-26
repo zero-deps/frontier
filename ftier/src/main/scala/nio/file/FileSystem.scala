@@ -46,20 +46,20 @@ object FileSystem {
 
   def default: FileSystem = new FileSystem(jf.FileSystems.getDefault)
 
-  def getFileSystem(uri: URI): ZManaged[Blocking, Exception, FileSystem] =
+  def getFileSystem(uri: URI): ZManaged[Any, Exception, FileSystem] =
     attemptBlocking(new FileSystem(jf.FileSystems.getFileSystem(uri))).refineToOrDie[Exception].toManagedWith(close)
 
-  def newFileSystem(uri: URI, env: (String, Any)*): ZManaged[Blocking, Exception, FileSystem] =
+  def newFileSystem(uri: URI, env: (String, Any)*): ZManaged[Any, Exception, FileSystem] =
     attemptBlocking(new FileSystem(jf.FileSystems.newFileSystem(uri, env.toMap.asJava)))
       .refineToOrDie[Exception]
       .toManagedWith(close)
 
-  def newFileSystem(uri: URI, env: Map[String, ?], loader: ClassLoader): ZManaged[Blocking, Exception, FileSystem] =
+  def newFileSystem(uri: URI, env: Map[String, ?], loader: ClassLoader): ZManaged[Any, Exception, FileSystem] =
     attemptBlocking(new FileSystem(jf.FileSystems.newFileSystem(uri, env.asJava, loader)))
       .refineToOrDie[Exception]
       .toManagedWith(close)
 
-  def newFileSystem(path: Path, loader: ClassLoader): ZManaged[Blocking, Exception, FileSystem] =
+  def newFileSystem(path: Path, loader: ClassLoader): ZManaged[Any, Exception, FileSystem] =
     attemptBlocking(new FileSystem(jf.FileSystems.newFileSystem(path.javaPath, loader)))
       .refineToOrDie[Exception]
       .toManagedWith(close)

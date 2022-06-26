@@ -67,8 +67,7 @@ final class WatchService private (private[file] val javaWatchService: JWatchServ
       .refineToOrDie[Exception]
 
   def take: IO[Exception, WatchKey] =
-    ZIO
-      .environmentWithZIO[Blocking](_.get.effectBlocking(new WatchKey(javaWatchService.take())))
+    ZIO.attemptBlocking(new WatchKey(javaWatchService.take()))
       .refineToOrDie[Exception]
 }
 

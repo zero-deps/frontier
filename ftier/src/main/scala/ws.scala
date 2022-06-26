@@ -31,7 +31,7 @@ case class WsContextData(
 type WsContext = WsContextData
 
 object Ws {
-  def req: URIO[WsContext, Request] = ZIO.environment(_.get.req)
+  def req: URIO[WsContext, Request] = ZIO.serviceWith(_.req)
   def send(msg: Msg): URIO[WsContext, Unit] = ZIO.environmentWithZIO(_.get.send(msg))
   def close(status: CloseStatus = CLOSE_NORMAL): URIO[WsContext, Unit] = ZIO.environmentWithZIO(_.get.sendClose(status).orDie)
 }

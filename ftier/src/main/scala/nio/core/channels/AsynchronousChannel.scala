@@ -24,7 +24,7 @@ class AsynchronousByteChannel(private val channel: JAsynchronousByteChannel) {
    *  read, or -1 if no bytes were read.
    */
   final private[nio] def readBuffer(b: Buffer[Byte]): IO[Exception, Int] =
-    effectAsyncWithCompletionHandler[JInteger](h => channel.read(b.buffer.asInstanceOf[JByteBuffer], (), h))
+    asyncWithCompletionHandler[JInteger](h => channel.read(b.buffer.asInstanceOf[JByteBuffer], (), h))
       .map(_.toInt)
       .refineToOrDie[Exception]
 
@@ -43,7 +43,7 @@ class AsynchronousByteChannel(private val channel: JAsynchronousByteChannel) {
    *  Writes data into this channel from buffer, returning the number of bytes written.
    */
   final private[nio] def writeBuffer(b: Buffer[Byte]): IO[Exception, Int] =
-    effectAsyncWithCompletionHandler[JInteger](h => channel.write(b.buffer.asInstanceOf[JByteBuffer], (), h))
+    asyncWithCompletionHandler[JInteger](h => channel.write(b.buffer.asInstanceOf[JByteBuffer], (), h))
       .map(_.toInt)
       .refineToOrDie[Exception]
 
@@ -89,7 +89,7 @@ class AsynchronousServerSocketChannel(private val channel: JAsynchronousServerSo
    * Accepts a connection.
    */
   final val accept: IO[Exception, AsynchronousSocketChannel] =
-    effectAsyncWithCompletionHandler[JAsynchronousSocketChannel](h => channel.accept((), h))
+    asyncWithCompletionHandler[JAsynchronousSocketChannel](h => channel.accept((), h))
       .map(AsynchronousSocketChannel(_))
       .refineToOrDie[Exception]
 
@@ -162,11 +162,11 @@ class AsynchronousSocketChannel(private val channel: JAsynchronousSocketChannel)
     ).refineToOrDie[Exception]
 
   final def connect(socketAddress: SocketAddress): IO[Exception, Unit] =
-    effectAsyncWithCompletionHandler[JVoid](h => channel.connect(socketAddress.jSocketAddress, (), h)).unit
+    asyncWithCompletionHandler[JVoid](h => channel.connect(socketAddress.jSocketAddress, (), h)).unit
       .refineToOrDie[Exception]
 
   final private[nio] def readBuffer[A](dst: Buffer[Byte], timeout: Duration): IO[Exception, Int] =
-    effectAsyncWithCompletionHandler[JInteger] { h =>
+    asyncWithCompletionHandler[JInteger] { h =>
       channel.read(
         dst.buffer.asInstanceOf[JByteBuffer],
         timeout.fold(Long.MaxValue, _.toNanos),
@@ -193,7 +193,7 @@ class AsynchronousSocketChannel(private val channel: JAsynchronousSocketChannel)
     length: Int,
     timeout: Duration
   ): IO[Exception, Long] =
-    effectAsyncWithCompletionHandler[JLong](h =>
+    asyncWithCompletionHandler[JLong](h =>
       channel.read(
         dsts.map(_.buffer.asInstanceOf[JByteBuffer]).toArray,
         offset,

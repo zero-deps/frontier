@@ -21,7 +21,7 @@ case class WsResp[R](req: UpgradeRequest, handler: WsHandler[R])
 
 type WsHandler[R] = Msg => RIO[WsContext & R, Unit]
 
-def processHttp[R](ch: SocketChannel, h: HttpHandler[R])(protocol: Protocol.Http, chunk: Chunk[Byte]): RIO[R & Blocking, Protocol] =
+def processHttp[R](ch: SocketChannel, h: HttpHandler[R])(protocol: Protocol.Http, chunk: Chunk[Byte]): RIO[R, Protocol] =
   http.processChunk(chunk, protocol.state).flatMap{
     case HttpState.MsgDone(meta, body) =>
       val req = Request(method=meta.method, url=meta.url, meta.headers, body)
@@ -106,7 +106,7 @@ def processWs[R](ch: SocketChannel)(protocol: Protocol.Ws[R], chunk: Chunk[Byte]
     case state => 
       ZIO.succeed(protocol.copy(state=state))
 
-def httpProtocol[R](ch: SocketChannel, h: HttpHandler[R], state: Ref[Protocol])(chunk: Chunk[Byte]): RIO[R & Blocking, Unit] =
+def httpProtocol[R](ch: SocketChannel, h: HttpHandler[R], state: Ref[Protocol])(chunk: Chunk[Byte]): RIO[R, Unit] =
   for
     data <- state.get
     data <-
@@ -116,12 +116,12 @@ def httpProtocol[R](ch: SocketChannel, h: HttpHandler[R], state: Ref[Protocol])(
     _ <- state.set(data)
   yield ()
 
-def bind[R](addr: SocketAddress, h: HttpHandler[R], conf: ServerConf = ServerConf.default): RIO[R & Blocking & Clock, Unit] =
+def bind[R](addr: SocketAddress, h: HttpHandler[R], conf: ServerConf = ServerConf.default): RIO[R & Clock, Unit] =
   for
-    r <- ZIO.environment[R & Blocking]
+    r <- ZIO.environment[R]
     _ <- tcp.bind(addr, conf.workers, ch =>
       for
         state <- Ref.make[Protocol](Protocol.http)
-      yield httpProtocol(ch, h, state)(_).provideService(r)
+      yield httpProtocol(ch, h, state)(_).provideEnvironment(r)
     )
   yield ()

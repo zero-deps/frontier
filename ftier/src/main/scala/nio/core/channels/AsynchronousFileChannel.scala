@@ -19,13 +19,13 @@ class AsynchronousFileChannel(protected val channel: JAsynchronousFileChannel) e
     ZIO.attempt(channel.force(metaData)).refineToOrDie[IOException]
 
   final def lock(position: Long = 0L, size: Long = Long.MaxValue, shared: Boolean = false): IO[Exception, FileLock] =
-    effectAsyncWithCompletionHandler[JFileLock](channel.lock(position, size, shared, (), _))
+    asyncWithCompletionHandler[JFileLock](channel.lock(position, size, shared, (), _))
       .map(new FileLock(_))
       .refineToOrDie[Exception]
 
   final private[nio] def readBuffer(dst: ByteBuffer, position: Long): IO[Exception, Int] =
     dst.withJavaBuffer { buf =>
-      effectAsyncWithCompletionHandler[Integer](channel.read(buf, position, (), _))
+      asyncWithCompletionHandler[Integer](channel.read(buf, position, (), _))
         .map(_.intValue)
         .refineToOrDie[Exception]
     }
@@ -48,7 +48,7 @@ class AsynchronousFileChannel(protected val channel: JAsynchronousFileChannel) e
 
   final private[nio] def writeBuffer(src: ByteBuffer, position: Long): IO[Exception, Int] =
     src.withJavaBuffer { buf =>
-      effectAsyncWithCompletionHandler[Integer](channel.write(buf, position, (), _))
+      asyncWithCompletionHandler[Integer](channel.write(buf, position, (), _))
         .map(_.intValue)
         .refineToOrDie[Exception]
     }

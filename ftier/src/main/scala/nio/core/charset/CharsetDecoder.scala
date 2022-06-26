@@ -75,7 +75,7 @@ final class CharsetDecoder private (val javaDecoder: j.CharsetDecoder) extends A
    *                Must be at least 50.
    */
   def transducer(bufSize: Int = 5000): Transducer[j.CharacterCodingException, Byte, Char] = {
-    val push: Managed[Nothing, Option[Chunk[Byte]] => IO[j.CharacterCodingException, Chunk[Char]]] = {
+    val push: ZManaged[Any, Nothing, Option[Chunk[Byte]] => IO[j.CharacterCodingException, Chunk[Char]]] = {
       for {
         byteBuffer <- Buffer.byte(bufSize).toManaged.orDie
         charBuffer <- Buffer.char((bufSize.toFloat * this.averageCharsPerByte).round).toManaged.orDie

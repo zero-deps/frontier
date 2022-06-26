@@ -47,8 +47,7 @@ final class FileChannel private[channels] (override protected[channels] val chan
       .refineToOrDie[Exception]
 
   def map(mode: JFileChannel.MapMode, position: Long, size: Long): IO[Exception, MappedByteBuffer] =
-    ZIO
-      .environmentWithZIO[Blocking](_.get.effectBlocking(new MappedByteBuffer(channel.map(mode, position, size))))
+    ZIO.attemptBlocking(new MappedByteBuffer(channel.map(mode, position, size)))
       .refineToOrDie[Exception]
 
   def lock(
@@ -68,26 +67,26 @@ final class FileChannel private[channels] (override protected[channels] val chan
 
 object FileChannel {
 
-  def apply(channel: JFileChannel): Managed[Exception, FileChannel] = {
+  def apply(channel: JFileChannel): ZManaged[Any, Exception, FileChannel] = {
     val ch = ZIO.attempt(new FileChannel(channel)).refineToOrDie[Exception]
-    Managed.acquireReleaseWith(ch)(_.close.orDie)
+    ZManaged.acquireReleaseWith(ch)(_.close.orDie)
   }
 
   def open(
     path: Path,
     options: Set[? <: OpenOption],
     attrs: FileAttribute[?]*
-  ): ZManaged[Blocking, Exception, FileChannel] =
+  ): ZManaged[Any, Exception, FileChannel] =
     ZIO.attempt(new FileChannel(JFileChannel.open(path.javaPath, options.asJava, attrs *)))
       .refineToOrDie[Exception]
       .toManagedWith(_.close.orDie)
 
-  def open(path: Path, options: OpenOption*): ZManaged[Blocking, Exception, FileChannel] =
+  def open(path: Path, options: OpenOption*): ZManaged[Any, Exception, FileChannel] =
     attemptBlocking(new FileChannel(JFileChannel.open(path.javaPath, options *)))
       .refineToOrDie[Exception]
       .toManagedWith(_.close.orDie)
 
-  def fromJava(javaFileChannel: JFileChannel): ZManaged[Blocking, Nothing, FileChannel] =
+  def fromJava(javaFileChannel: JFileChannel): ZManaged[Any, Nothing, FileChannel] =
     attemptBlocking(new FileChannel(javaFileChannel)).orDie
       .toManagedWith(_.close.orDie)
 
