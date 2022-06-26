@@ -1,6 +1,6 @@
 lazy val `ftier-root` = project
   .in(file("."))
-  .aggregate(ftier, /*tg, */demo, benchmark)
+  .aggregate(ftier, /*bot, */demo, benchmark)
 
 lazy val ftier = project
   .in(file("ftier"))
@@ -19,8 +19,8 @@ lazy val ftier = project
   .dependsOn(zio_nio)
   .aggregate(zio_nio, zio_nio_core)
 
-lazy val tg = project
-  .in(file("tg"))
+lazy val bot = project
+  .in(file("bot"))
   .settings(
     scalaVersion := "3.2.0-RC1"
   , libraryDependencies ++= Seq(
