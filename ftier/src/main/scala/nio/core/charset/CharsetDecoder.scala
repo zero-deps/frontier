@@ -4,9 +4,9 @@ package core
 package charset
 
 import java.nio.{ charset as j }
-import java.nio.charset.{ MalformedInputException, UnmappableCharacterException }
-
-import zio.stream.{ Transducer, ZTransducer }
+import java.nio.charset.{MalformedInputException, UnmappableCharacterException}
+import zio.stream.{ ZChannel, ZPipeline }
+import zio.managed.*
 
 final class CharsetDecoder private (val javaDecoder: j.CharsetDecoder) extends AnyVal {
 
@@ -74,23 +74,24 @@ final class CharsetDecoder private (val javaDecoder: j.CharsetDecoder) extends A
    * @param bufSize The size of the internal buffer used for encoding.
    *                Must be at least 50.
    */
-  def transducer(bufSize: Int = 5000): Transducer[j.CharacterCodingException, Byte, Char] = {
+  def transducer(bufSize: Int = 5000): ZPipeline[Any, j.CharacterCodingException, Byte, Char] = {
     val push: ZManaged[Any, Nothing, Option[Chunk[Byte]] => IO[j.CharacterCodingException, Chunk[Char]]] = {
       for {
+        _          <- reset.toManaged
         byteBuffer <- Buffer.byte(bufSize).toManaged.orDie
         charBuffer <- Buffer.char((bufSize.toFloat * this.averageCharsPerByte).round).toManaged.orDie
       } yield {
 
-        def handleCoderResult(coderResult: CoderResult) =
+        def handleCoderResult(coderResult: CoderResult): IO[j.CharacterCodingException, Chunk[Char]] =
           coderResult match {
             case CoderResult.Underflow | CoderResult.Overflow =>
               byteBuffer.compact.orDie *>
                 charBuffer.flip *>
                 charBuffer.getChunk().orDie <*
                 charBuffer.clear
-            case CoderResult.Malformed(length)                =>
+            case CoderResult.Malformed(length) =>
               ZIO.fail(new MalformedInputException(length))
-            case CoderResult.Unmappable(length)               =>
+            case CoderResult.Unmappable(length) =>
               ZIO.fail(new UnmappableCharacterException(length))
           }
 
@@ -98,22 +99,22 @@ final class CharsetDecoder private (val javaDecoder: j.CharsetDecoder) extends A
           .map { inChunk =>
             def decodeChunk(inBytes: Chunk[Byte]): IO[j.CharacterCodingException, Chunk[Char]] =
               for {
-                bufRemaining                 <- byteBuffer.remaining
+                bufRemaining <- byteBuffer.remaining
                 (decodeBytes, remainingBytes) = {
                   if (inBytes.length > bufRemaining)
                     inBytes.splitAt(bufRemaining)
                   else
                     (inBytes, Chunk.empty)
                 }
-                _                            <- byteBuffer.putChunk(decodeBytes).orDie
-                _                            <- byteBuffer.flip
-                result                       <- decode(
-                                                  byteBuffer,
-                                                  charBuffer,
-                                                  endOfInput = false
-                                                )
-                decodedChars                 <- handleCoderResult(result)
-                remainderChars               <- if (remainingBytes.isEmpty) ZIO.succeed(Chunk.empty) else decodeChunk(remainingBytes)
+                _ <- byteBuffer.putChunk(decodeBytes).orDie
+                _ <- byteBuffer.flip
+                result <- decode(
+                            byteBuffer,
+                            charBuffer,
+                            endOfInput = false
+                          )
+                decodedChars   <- handleCoderResult(result)
+                remainderChars <- if (remainingBytes.isEmpty) ZIO.succeed(Chunk.empty) else decodeChunk(remainingBytes)
               } yield decodedChars ++ remainderChars
 
             decodeChunk(inChunk)
@@ -121,11 +122,11 @@ final class CharsetDecoder private (val javaDecoder: j.CharsetDecoder) extends A
           .getOrElse {
             def endOfInput: IO[j.CharacterCodingException, Chunk[Char]] =
               for {
-                result         <- decode(
-                                    byteBuffer,
-                                    charBuffer,
-                                    endOfInput = true
-                                  )
+                result <- decode(
+                            byteBuffer,
+                            charBuffer,
+                            endOfInput = true
+                          )
                 decodedChars   <- handleCoderResult(result)
                 remainderChars <- if (result == CoderResult.Overflow) endOfInput else ZIO.succeed(Chunk.empty)
               } yield decodedChars ++ remainderChars
@@ -143,9 +144,9 @@ final class CharsetDecoder private (val javaDecoder: j.CharsetDecoder) extends A
     }
 
     if (bufSize < 50)
-      ZTransducer.die(new IllegalArgumentException(s"Buffer size is $bufSize, must be >= 50"))
+      ZPipeline.fromChannel(ZChannel.fromZIO(ZIO.die(new IllegalArgumentException(s"Buffer size is $bufSize, must be >= 50"))))
     else
-      ZTransducer(push)
+      ZPipeline.fromPush(push)
   }
 
 }
