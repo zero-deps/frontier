@@ -6,7 +6,6 @@ package charset
 import java.nio.{ charset as j }
 import java.nio.charset.{MalformedInputException, UnmappableCharacterException}
 import zio.stream.{ ZChannel, ZPipeline }
-import zio.managed.*
 
 final class CharsetEncoder private (val javaEncoder: j.CharsetEncoder) extends AnyVal {
 
@@ -56,11 +55,11 @@ final class CharsetEncoder private (val javaEncoder: j.CharsetEncoder) extends A
    *                Must be at least 50.
    */
   def transducer(bufSize: Int = 5000): ZPipeline[Any, j.CharacterCodingException, Char, Byte] = {
-    val push: ZManaged[Any, Nothing, Option[Chunk[Char]] => IO[j.CharacterCodingException, Chunk[Byte]]] = {
+    val push: ZIO[Scope, Nothing, Option[Chunk[Char]] => IO[j.CharacterCodingException, Chunk[Byte]]] = {
       for {
         _          <- reset
-        charBuffer <- Buffer.char((bufSize.toFloat / this.averageBytesPerChar).round).toManaged.orDie
-        byteBuffer <- Buffer.byte(bufSize).toManaged.orDie
+        charBuffer <- Buffer.char((bufSize.toFloat / this.averageBytesPerChar).round).orDie
+        byteBuffer <- Buffer.byte(bufSize).orDie
       } yield {
 
         def handleCoderResult(coderResult: CoderResult) =

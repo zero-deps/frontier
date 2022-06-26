@@ -207,9 +207,9 @@ object FormSpec extends ZIOSpecDefault:
       ).stripMargin.getBytes("utf8").nn
 
       check(Gen.int(0, form.size)) { i =>
+        val (form1, form2) = form.splitAt(i)
+        val state: HttpState.AwaitForm = HttpState.AwaitForm(meta=MetaData("POST", "", Map.empty), body=Array.empty, form=Nil, bound="----WebKitFormBoundaryAtKqfnKiF0dX7jp6", curr=None)
         for
-          (form1, form2) <- ZIO.succeed(form.splitAt(i))
-          state: HttpState.AwaitForm  = HttpState.AwaitForm(meta=MetaData("POST", "", Map.empty), body=Array.empty, form=Nil, bound="----WebKitFormBoundaryAtKqfnKiF0dX7jp6", curr=None)
           s1 <- awaitForm(state, form1).collect("bad state"){ case s: HttpState.AwaitForm => s }
           parsedForm <- awaitForm(s1, form2).collect("bad state"){ case HttpState.MsgDone(_, body: BodyForm) => body.x }
           components =

@@ -58,7 +58,7 @@ object Udp {
                           ChannelRead(
                             for {
                               rem <- buffer.remaining
-                              h   <- ZIO.require(NoAddr)(ZIO.succeed(addr.inetSocketAddress.map(_.hostString)))
+                              h   <- ZIO.succeed(addr.inetSocketAddress.map(_.hostString)).someOrFail(NoAddr)
                               x   <- buffer.getChunk(rem).orDie
                             } yield h -> x
                           )
