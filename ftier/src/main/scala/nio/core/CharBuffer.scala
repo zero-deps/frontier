@@ -5,7 +5,7 @@ package core
 import zio.*
 import java.nio.{ BufferUnderflowException, ByteOrder, ReadOnlyBufferException, CharBuffer as JCharBuffer }
 
-final class CharBuffer(charBuffer: JCharBuffer) extends Buffer[Char](charBuffer) {
+final class CharBuffer(charBuffer: JCharBuffer) extends Buffer[Char](charBuffer):
 
   override protected[nio] def array: IO[Exception, Array[Char]] =
     ZIO.attempt(charBuffer.array().nn).refineToOrDie[Exception]
@@ -53,4 +53,3 @@ final class CharBuffer(charBuffer: JCharBuffer) extends Buffer[Char](charBuffer)
 
   override def asReadOnlyBuffer: IO[Nothing, CharBuffer] =
     ZIO.succeed(charBuffer.asReadOnlyBuffer().nn).map(new CharBuffer(_))
-}

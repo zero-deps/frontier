@@ -5,7 +5,7 @@ package core
 import zio.*
 import java.nio.{ BufferUnderflowException, ByteOrder, ReadOnlyBufferException, FloatBuffer as JFloatBuffer }
 
-final class FloatBuffer(floatBuffer: JFloatBuffer) extends Buffer[Float](floatBuffer) {
+final class FloatBuffer(floatBuffer: JFloatBuffer) extends Buffer[Float](floatBuffer):
 
   override protected[nio] def array: IO[Exception, Array[Float]] =
     ZIO.attempt(floatBuffer.array().nn).refineToOrDie[Exception]
@@ -51,4 +51,3 @@ final class FloatBuffer(floatBuffer: JFloatBuffer) extends Buffer[Float](floatBu
 
   override def asReadOnlyBuffer: IO[Nothing, FloatBuffer] =
     ZIO.succeed(floatBuffer.asReadOnlyBuffer().nn).map(new FloatBuffer(_))
-}

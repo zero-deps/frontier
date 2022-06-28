@@ -5,27 +5,24 @@ package core
 import java.net.{ InetSocketAddress as JInetSocketAddress, SocketAddress as JSocketAddress }
 import zio.*
 
-class SocketAddress private[nio] (private[nio] val jSocketAddress: JSocketAddress) {
+class SocketAddress private[nio] (private[nio] val jSocketAddress: JSocketAddress):
 
   override def equals(obj: Any): Boolean =
-    obj match {
+    obj match
       case other: SocketAddress => other.jSocketAddress == this.jSocketAddress
       case _                    => false
-    }
 
   override def hashCode(): Int = jSocketAddress.hashCode()
 
   override def toString: String = jSocketAddress.toString
 
   def inetSocketAddress: Option[InetSocketAddress] =
-    jSocketAddress match {
+    jSocketAddress match
       case x: JInetSocketAddress => Some(InetSocketAddress(x))
       case _ => None
-    }
-}
 
 class InetSocketAddress private[nio] (private val jInetSocketAddress: JInetSocketAddress)
-    extends SocketAddress(jInetSocketAddress) {
+    extends SocketAddress(jInetSocketAddress):
   def port: Int = jInetSocketAddress.getPort
 
   def hostName: IO[Exception, String] =
@@ -37,17 +34,15 @@ class InetSocketAddress private[nio] (private val jInetSocketAddress: JInetSocke
 
   final override def toString: String =
     jInetSocketAddress.toString
-}
 
-object SocketAddress {
+object SocketAddress:
 
   private[nio] def apply(jSocketAddress: JSocketAddress) =
-    jSocketAddress match {
+    jSocketAddress match
       case inet: JInetSocketAddress =>
         new InetSocketAddress(inet)
       case other                    =>
         new SocketAddress(other)
-    }
 
   def inetSocketAddress(port: Int): IO[Exception, InetSocketAddress] =
     InetSocketAddress(port)
@@ -61,7 +56,7 @@ object SocketAddress {
   def unresolvedInetSocketAddress(hostname: String, port: Int): IO[Exception, InetSocketAddress] =
     InetSocketAddress.createUnresolved(hostname, port)
 
-  private object InetSocketAddress {
+  private object InetSocketAddress:
 
     def apply(port: Int): IO[Exception, InetSocketAddress] =
       ZIO.attempt(new JInetSocketAddress(port))
@@ -82,5 +77,3 @@ object SocketAddress {
       ZIO.attempt(JInetSocketAddress.createUnresolved(host, port).nn)
         .refineToOrDie[Exception]
         .map(new InetSocketAddress(_))
-  }
-}

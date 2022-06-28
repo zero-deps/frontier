@@ -5,7 +5,7 @@ package core
 import zio.*
 import java.nio.{ BufferUnderflowException, ByteOrder, ReadOnlyBufferException, LongBuffer as JLongBuffer }
 
-final class LongBuffer(val longBuffer: JLongBuffer) extends Buffer[Long](longBuffer) {
+final class LongBuffer(val longBuffer: JLongBuffer) extends Buffer[Long](longBuffer):
 
   override protected[nio] def array: IO[Exception, Array[Long]] =
     ZIO.attempt(longBuffer.array().nn).refineToOrDie[Exception]
@@ -51,4 +51,3 @@ final class LongBuffer(val longBuffer: JLongBuffer) extends Buffer[Long](longBuf
 
   override def asReadOnlyBuffer: IO[Nothing, LongBuffer] =
     ZIO.succeed(longBuffer.asReadOnlyBuffer().nn).map(new LongBuffer(_))
-}

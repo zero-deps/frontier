@@ -8,7 +8,7 @@ import zio.*
 
 import scala.collection.JavaConverters.*
 
-class NetworkInterface private[nio] (private[nio] val jNetworkInterface: JNetworkInterface) {
+class NetworkInterface private[nio] (private[nio] val jNetworkInterface: JNetworkInterface):
   import NetworkInterface.JustSocketException
 
   def name: String = jNetworkInterface.getName.nn
@@ -47,13 +47,11 @@ class NetworkInterface private[nio] (private[nio] val jNetworkInterface: JNetwor
     ZIO.attempt(jNetworkInterface.getMTU).refineOrDie(JustSocketException)
 
   def isVirtual: Boolean = jNetworkInterface.isVirtual
-}
 
-object NetworkInterface {
+object NetworkInterface:
 
-  val JustSocketException: PartialFunction[Throwable, SocketException] = {
+  val JustSocketException: PartialFunction[Throwable, SocketException] =
     case e: SocketException => e
-  }
 
   def byName(name: String): IO[SocketException, NetworkInterface] =
     ZIO.attempt(JNetworkInterface.getByName(name).nn)
@@ -74,4 +72,3 @@ object NetworkInterface {
     ZIO.attempt(JNetworkInterface.getNetworkInterfaces.nn.asScala)
       .refineOrDie(JustSocketException)
       .map(_.map(new NetworkInterface(_)))
-}

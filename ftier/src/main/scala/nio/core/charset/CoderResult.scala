@@ -5,19 +5,17 @@ package charset
 
 import java.nio.{ charset as j }
 
-sealed trait CoderResult {
+sealed trait CoderResult:
 
   import CoderResult.*
 
   def isError: Boolean =
-    this match {
+    this match
       case Underflow | Overflow => false
       case _                    => true
-    }
 
-}
 
-object CoderResult {
+object CoderResult:
 
   case object Underflow extends CoderResult
 
@@ -28,12 +26,10 @@ object CoderResult {
   final case class Malformed(length: Int) extends CoderResult
 
   def fromJava(javaResult: j.CoderResult): CoderResult =
-    javaResult match {
+    javaResult match
       case r if r.isOverflow()   => Overflow
       case r if r.isUnderflow()  => Underflow
       case r if r.isUnmappable() => Unmappable(r.length())
       case r if r.isMalformed()  => Malformed(r.length())
       case r                     => sys.error(s"CoderResult in bad state: $r")
-    }
 
-}

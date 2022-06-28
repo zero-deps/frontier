@@ -21,7 +21,7 @@ import zio.*
 import scala.reflect.ClassTag
 
 @specialized // See if Specialized will work on return values, e.g. `get`
-abstract class Buffer[A: ClassTag] private[nio] (private[nio] val buffer: JBuffer) {
+abstract class Buffer[A: ClassTag] private[nio] (private[nio] val buffer: JBuffer):
   final def capacity: Int = buffer.capacity
 
   def order: ByteOrder
@@ -68,12 +68,12 @@ abstract class Buffer[A: ClassTag] private[nio] (private[nio] val buffer: JBuffe
   )(
     hasArray: (Array[A], Int) => ZIO[R, E, B]
   ): ZIO[R, E, B] =
-    if (buffer.hasArray)
-      for {
+    if buffer.hasArray then
+      for
         a      <- array.orDie
         offset <- ZIO.attempt(buffer.arrayOffset()).orDie
         result <- hasArray(a, offset)
-      } yield result
+      yield result
     else
       noArray
 
@@ -97,16 +97,15 @@ abstract class Buffer[A: ClassTag] private[nio] (private[nio] val buffer: JBuffe
    * @return The remaining elements that could not fit in this buffer, if any.
    */
   final def fillFromChunk(chunk: Chunk[A]): IO[Nothing, Chunk[A]] =
-    for {
+    for
       r                         <- remaining
       (putChunk, remainderChunk) = chunk.splitAt(r)
       _                         <- this.putChunk(putChunk).orDie
-    } yield remainderChunk
+    yield remainderChunk
 
   def asReadOnlyBuffer: IO[Nothing, Buffer[A]]
-}
 
-object Buffer {
+object Buffer:
 
   def byte(capacity: Int): IO[IllegalArgumentException, ByteBuffer] =
     ZIO.attempt(JByteBuffer.allocate(capacity).nn)
@@ -193,4 +192,3 @@ object Buffer {
 
   def shortFromJava(javaBuffer: JShortBuffer): ShortBuffer = new ShortBuffer(javaBuffer)
 
-}

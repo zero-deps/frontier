@@ -12,7 +12,7 @@ import scala.concurrent.ExecutionContextExecutorService
 import scala.jdk.CollectionConverters.*
 import zio.*
 
-class AsynchronousFileChannel(protected val channel: JAsynchronousFileChannel) extends Channel {
+class AsynchronousFileChannel(protected val channel: JAsynchronousFileChannel) extends Channel:
 
   final def force(metaData: Boolean): IO[IOException, Unit] =
     ZIO.attempt(channel.force(metaData)).refineToOrDie[IOException]
@@ -30,11 +30,11 @@ class AsynchronousFileChannel(protected val channel: JAsynchronousFileChannel) e
     }
 
   final def read(capacity: Int, position: Long): IO[Exception, Chunk[Byte]] =
-    for {
+    for
       b     <- Buffer.byte(capacity)
       count <- readBuffer(b, position)
       a     <- b.array
-    } yield Chunk.fromArray(a).take(math.max(count, 0))
+    yield Chunk.fromArray(a).take(math.max(count, 0))
 
   final val size: IO[IOException, Long] =
     ZIO.attempt(channel.size()).refineToOrDie[IOException]
@@ -53,13 +53,12 @@ class AsynchronousFileChannel(protected val channel: JAsynchronousFileChannel) e
     }
 
   final def write(src: Chunk[Byte], position: Long): IO[Exception, Int] =
-    for {
+    for
       b <- Buffer.byte(src)
       r <- writeBuffer(b, position)
-    } yield r
-}
+    yield r
 
-object AsynchronousFileChannel {
+object AsynchronousFileChannel:
 
   def open(file: Path, options: OpenOption*): IO[Exception, AsynchronousFileChannel] =
     ZIO.attempt(
@@ -77,4 +76,3 @@ object AsynchronousFileChannel {
         JAsynchronousFileChannel.open(file.javaPath, options.asJava, executor.orNull, attrs.toSeq *).nn
       )
     ).refineToOrDie[Exception]
-}

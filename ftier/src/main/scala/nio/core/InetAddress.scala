@@ -6,7 +6,7 @@ import java.net.{ InetAddress as JInetAddress }
 
 import zio.*
 
-class InetAddress private[nio] (private[nio] val jInetAddress: JInetAddress) {
+class InetAddress private[nio] (private[nio] val jInetAddress: JInetAddress):
   def isMulticastAddress: Boolean = jInetAddress.isMulticastAddress
 
   def isAnyLocalAddress: Boolean = jInetAddress.isAnyLocalAddress
@@ -43,9 +43,8 @@ class InetAddress private[nio] (private[nio] val jInetAddress: JInetAddress) {
   def canonicalHostName: String = jInetAddress.getCanonicalHostName.nn
 
   def address: Array[Byte] = jInetAddress.getAddress.nn
-}
 
-object InetAddress {
+object InetAddress:
 
   def byAddress(bytes: Array[Byte]): IO[Exception, InetAddress] =
     ZIO.attempt(JInetAddress.getByAddress(bytes).nn)
@@ -69,4 +68,3 @@ object InetAddress {
 
   def localHost: IO[Exception, InetAddress] =
     ZIO.attempt(JInetAddress.getLocalHost.nn).refineToOrDie[Exception].map(new InetAddress(_))
-}

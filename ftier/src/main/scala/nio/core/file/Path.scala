@@ -8,7 +8,7 @@ import java.nio.file.{ LinkOption, Paths, Path as JPath, Watchable as JWatchable
 import scala.jdk.CollectionConverters.*
 import zio.*
 
-final class Path private (private[nio] val javaPath: JPath) extends Watchable {
+final class Path private (private[nio] val javaPath: JPath) extends Watchable:
   import Path.*
 
   def filesystem: FileSystem = FileSystem.fromJava(javaPath.getFileSystem.nn)
@@ -61,18 +61,15 @@ final class Path private (private[nio] val javaPath: JPath) extends Watchable {
   override def hashCode: Int = javaPath.hashCode
 
   override def equals(obj: Any): Boolean =
-    obj match {
+    obj match
       case other: Path => this.javaPath.equals(other.javaPath)
       case _           => false
-    }
 
   override def toString: String = javaPath.toString
-}
 
-object Path {
+object Path:
   def apply(first: String, more: String*): Path = new Path(Paths.get(first, more *).nn)
 
   def apply(uri: URI): Path = new Path(Paths.get(uri).nn)
 
   def fromJava(javaPath: JPath): Path = new Path(javaPath)
-}

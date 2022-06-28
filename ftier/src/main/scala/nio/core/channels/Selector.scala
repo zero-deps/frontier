@@ -11,7 +11,7 @@ import zio.*
 
 import scala.jdk.CollectionConverters.*
 
-class Selector(private[nio] val selector: JSelector) {
+class Selector(private[nio] val selector: JSelector):
   final val isOpen: UIO[Boolean] = ZIO.succeed(selector.isOpen)
 
   final val provider: UIO[SelectorProvider] =
@@ -55,10 +55,8 @@ class Selector(private[nio] val selector: JSelector) {
 
   final val close: IO[IOException, Unit] =
     ZIO.attempt(selector.close()).refineToOrDie[IOException].unit
-}
 
-object Selector {
+object Selector:
 
   final val make: IO[IOException, Selector] =
     ZIO.attempt(new Selector(JSelector.open().nn)).refineToOrDie[IOException]
-}

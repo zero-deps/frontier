@@ -27,29 +27,27 @@ import scala.reflect.*
 import zio.ZIO.attemptBlocking
 import zio.managed.*
 
-object Files {
+object Files:
 
   def fromJavaIterator[A](iterator: JIterator[A]): ZStream[Any, RuntimeException, A] =
     ZStream.unfoldZIO(()) { _ =>
       attemptBlocking {
-        if (iterator.hasNext) Some((iterator.next().nn, ())) else None
+        if iterator.hasNext then Some((iterator.next().nn, ())) else None
       }.refineToOrDie[RuntimeException]
     }
 
-  def newDirectoryStream(dir: Path, glob: String = "*"): ZStream[Any, Exception, Path] = {
+  def newDirectoryStream(dir: Path, glob: String = "*"): ZStream[Any, Exception, Path] =
     val managed = ZManaged.fromAutoCloseable(
       attemptBlocking(JFiles.newDirectoryStream(dir.javaPath, glob).nn).refineToOrDie[Exception]
     )
     ZStream.managed(managed).mapZIO(dirStream => ZIO.succeed(dirStream.iterator().nn)).flatMap(fromJavaIterator).map(Path.fromJava)
-  }
 
-  def newDirectoryStream(dir: Path, filter: Path => Boolean): ZStream[Any, Exception, Path] = {
+  def newDirectoryStream(dir: Path, filter: Path => Boolean): ZStream[Any, Exception, Path] =
     val javaFilter: DirectoryStream.Filter[? >: JPath] = javaPath => filter(Path.fromJava(javaPath.nn))
     val managed                                        = ZManaged.fromAutoCloseable(
       attemptBlocking(JFiles.newDirectoryStream(dir.javaPath, javaFilter).nn).refineToOrDie[Exception]
     )
     ZStream.managed(managed).mapZIO(dirStream => ZIO.succeed(dirStream.iterator().nn)).flatMap(fromJavaIterator).map(Path.fromJava)
-  }
 
   def createFile(path: Path, attrs: FileAttribute[?]*): IO[Exception, Unit] =
     attemptBlocking(JFiles.createFile(path.javaPath, attrs *)).unit.refineToOrDie[Exception]
@@ -129,36 +127,31 @@ object Files {
 
   def useFileAttributeView[A <: FileAttributeView: ClassTag, B](path: Path, linkOptions: LinkOption*)(
     f: A => IO[Exception, B]
-  ): IO[Exception, B] = {
+  ): IO[Exception, B] =
     val viewClass =
       classTag[A].runtimeClass.asInstanceOf[Class[A]] // safe? because we know A is a subtype of FileAttributeView
     attemptBlocking(JFiles.getFileAttributeView[A](path.javaPath, viewClass, linkOptions *).nn).orDie
       .flatMap(f)
-  }
 
   def readAttributes[A <: BasicFileAttributes: ClassTag](
     path: Path,
     linkOptions: LinkOption*
-  ): IO[Exception, A] = {
+  ): IO[Exception, A] =
     // safe? because we know A is a subtype of BasicFileAttributes
     val attributeClass = classTag[A].runtimeClass.asInstanceOf[Class[A]]
     attemptBlocking(JFiles.readAttributes(path.javaPath, attributeClass, linkOptions *).nn)
       .refineToOrDie[Exception]
-  }
 
-  final case class Attribute(attributeName: String, viewName: String = "basic") {
+  final case class Attribute(attributeName: String, viewName: String = "basic"):
     def toJava: String = s"$viewName:$attributeName"
-  }
 
-  object Attribute {
+  object Attribute:
 
     def fromJava(javaAttribute: String): Option[Attribute] =
-      javaAttribute.split(':').toList match {
+      javaAttribute.split(':').toList match
         case name :: Nil         => Some(Attribute(name))
         case view :: name :: Nil => Some(Attribute(name, view))
         case _                   => None
-      }
-  }
 
   def setAttribute(
     path: Path,
@@ -172,42 +165,35 @@ object Files {
   def getAttribute(path: Path, attribute: Attribute, linkOptions: LinkOption*): IO[Exception, Object] =
     attemptBlocking(JFiles.getAttribute(path.javaPath, attribute.toJava, linkOptions *).nn).refineToOrDie[Exception]
 
-  sealed trait AttributeNames {
+  sealed trait AttributeNames:
 
     def toJava: String =
-      this match {
+      this match
         case AttributeNames.All         => "*"
         case AttributeNames.List(names) => names.mkString(",")
-      }
-  }
 
-  object AttributeNames {
+  object AttributeNames:
     final case class List(names: scala.List[String]) extends AttributeNames
 
     case object All extends AttributeNames
 
     def fromJava(javaNames: String): AttributeNames =
-      javaNames.trim.nn match {
+      javaNames.trim.nn match
         case "*"  => All
         case list => List(list.nn.split(',').toList)
-      }
 
     given CanEqual[All.type, AttributeNames] = CanEqual.derived
-  }
 
-  final case class Attributes(attributeNames: AttributeNames, viewName: String = "base") {
+  final case class Attributes(attributeNames: AttributeNames, viewName: String = "base"):
     def toJava: String = s"$viewName:${attributeNames.toJava}"
-  }
 
-  object Attributes {
+  object Attributes:
 
     def fromJava(javaAttributes: String): Option[Attributes] =
-      javaAttributes.split(':').toList match {
+      javaAttributes.split(':').toList match
         case names :: Nil         => Some(Attributes(AttributeNames.fromJava(names)))
         case view :: names :: Nil => Some(Attributes(AttributeNames.fromJava(names), view))
         case _                    => None
-      }
-  }
 
   def readAttributes(
     path: Path,
@@ -314,7 +300,7 @@ object Files {
 
   def find(path: Path, maxDepth: Int = Int.MaxValue, visitOptions: Set[FileVisitOption] = Set.empty)(
     test: (Path, BasicFileAttributes) => Boolean
-  ): ZStream[Any, Exception, Path] = {
+  ): ZStream[Any, Exception, Path] =
     val matcher: BiPredicate[JPath, BasicFileAttributes] = (path, attr) => test(Path.fromJava(path.nn), attr.nn)
     ZStream
       .fromZIO(
@@ -323,7 +309,6 @@ object Files {
       )
       .flatMap(fromJavaIterator)
       .map(Path.fromJava)
-  }
 
   def toInputStream(p: Path): ZIO[Scope, Throwable, InputStream] =
     zio.stream.ZStream.fromPath(p.javaPath).toInputStream
@@ -340,4 +325,3 @@ object Files {
 //      }
 //    }.use(ZIO.succeed)
 //  }
-}

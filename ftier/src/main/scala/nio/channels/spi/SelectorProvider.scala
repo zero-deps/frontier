@@ -11,7 +11,7 @@ import ftier.nio.channels.{ Selector, ServerSocketChannel, SocketChannel }
 import ftier.nio.core.channels.{ Pipe }
 import zio.*, managed.*
 
-class SelectorProvider(private val selectorProvider: JSelectorProvider) {
+class SelectorProvider(private val selectorProvider: JSelectorProvider):
 
   final val openDatagramChannel: IO[IOException, JDatagramChannel] = // TODO: wrapper for DatagramChannel
     ZIO.attempt(selectorProvider.openDatagramChannel().nn).refineToOrDie[IOException]
@@ -36,10 +36,8 @@ class SelectorProvider(private val selectorProvider: JSelectorProvider) {
 
   final val inheritedChannel: IO[IOException, Option[JChannel]] = // TODO: wrapper for Channel
     ZIO.attempt(selectorProvider.inheritedChannel().toOption).refineToOrDie[IOException]
-}
 
-object SelectorProvider {
+object SelectorProvider:
 
   final val make: IO[Nothing, SelectorProvider] =
     ZIO.succeed(JSelectorProvider.provider().nn).map(new SelectorProvider(_))
-}

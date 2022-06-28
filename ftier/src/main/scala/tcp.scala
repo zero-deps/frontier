@@ -20,7 +20,7 @@ def getServerSocketChannel(key: SelectionKey): Task[ServerSocketChannel] =
   key.channel flatMap (ch => ZIO.attempt(ch.asInstanceOf[JServerSocketChannel])) flatMap ServerSocketChannel.fromJava
 
 def select(selector: Selector, f: SelectionKey => Task[Any]): Task[Unit] =
-  for {
+  for
     _ <- selector.select(10 millisecond)
     keys <- selector.selectedKeys
     _ <-
@@ -36,26 +36,26 @@ def select(selector: Selector, f: SelectionKey => Task[Any]): Task[Unit] =
           }
         }
       }
-  } yield ()
+  yield ()
 
 def read(buffer: ByteBuffer, key: SelectionKey): Task[(Int, Chunk[Byte])] =
-  for {
+  for
     channel <- getSocketChannel(key)
     chunks <- Ref.make[Chunk[Byte]](Chunk.empty)
     lastN <-
-      (for {
+      (for
         _ <- buffer.clear
         n <- channel.read(buffer)
         _ <- buffer.flip
         a <- buffer.getChunk()
         c <- chunks.get
         _ <- chunks.set(c ++ a)
-      } yield if (c.length > size2mb) 0 else n).catchSome{
+      yield if c.length > size2mb then 0 else n).catchSome{
         case _: ClosedChannelException                                                         => ZIO.succeed(-1)
         case err: IOException if err.getMessage.toOption.exists(_.contains("Connection reset")) => ZIO.succeed(-1)
       }.repeatWhile(_ > 0)
     chunks <- chunks.get
-  } yield (lastN, chunks)
+  yield (lastN, chunks)
 
 def bind(
   addr: SocketAddress
@@ -64,7 +64,7 @@ def bind(
 , readSelectors: Vector[Selector]
 , init: TcpInit
 ): Task[Unit] =
-  for {
+  for
     _ <- serverChannel.configureBlocking(false)
     _ <- serverChannel.bind(addr)
     _ <- serverChannel.register(accessSelector, SelectionKey.Operation.Accept)
@@ -72,7 +72,7 @@ def bind(
     afork <-
       select(accessSelector, key =>
         ZIO.whenZIO(key.isAcceptable: Task[Boolean]){
-          for {
+          for
             server  <- getServerSocketChannel(key)
             channel <- server.accept
             channel <- ZIO.fromOption(channel).orElseFail(new CancelledKeyException())
@@ -84,7 +84,7 @@ def bind(
             readKey <- channel.register(readSelectors(n), SelectionKey.Operation.Read)
             handler <- init(channel)
             _       <- readKey.attach(handler)
-          } yield ()
+          yield ()
         }
       ).forever.orDie.fork
     _ <-
@@ -94,14 +94,14 @@ def bind(
             select(readSelector, key =>
               ZIO.whenZIO(key.isReadable: Task[Boolean]) {
                 read(buffer, key).flatMap{ case (n, chunk) =>
-                  (for {
+                  (for
                     channel <- getSocketChannel(key)
                     _       <- ZIO.when(n < 0)(channel.close)
                     handler <- key.attachment
                     handler <- ZIO.fromOption(handler).orElseFail(new RuntimeException("wrong state"))
                     handler <- ZIO.attempt(handler.asInstanceOf[TcpHandler])
                     _       <- handler(chunk)
-                  } yield ())
+                  yield ())
                     .retry(Schedule.spaced(2.millisecond) && Schedule.recurs(3))
                 }
               }
@@ -110,7 +110,7 @@ def bind(
         )
       )
     _ <- afork.await
-} yield ()
+  yield ()
 
 def bind(
   addr: SocketAddress

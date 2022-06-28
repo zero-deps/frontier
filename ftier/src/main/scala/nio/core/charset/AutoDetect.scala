@@ -4,7 +4,7 @@ package core.charset
 
 sealed abstract class AutoDetect
 
-object AutoDetect {
+object AutoDetect:
 
   case object NotSupported extends AutoDetect
 
@@ -12,4 +12,3 @@ object AutoDetect {
 
   final case class Detected(charset: Charset) extends AutoDetect
 
-}

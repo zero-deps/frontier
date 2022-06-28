@@ -5,7 +5,7 @@ package core
 import zio.*
 import java.nio.{ BufferUnderflowException, ByteOrder, ReadOnlyBufferException, ByteBuffer as JByteBuffer }
 
-class ByteBuffer protected[nio] (protected[nio] val byteBuffer: JByteBuffer) extends Buffer[Byte](byteBuffer) {
+class ByteBuffer protected[nio] (protected[nio] val byteBuffer: JByteBuffer) extends Buffer[Byte](byteBuffer):
 
   final override protected[nio] def array: IO[UnsupportedOperationException, Array[Byte]] =
     ZIO.attempt(byteBuffer.array().nn).refineToOrDie[UnsupportedOperationException]
@@ -147,4 +147,3 @@ class ByteBuffer protected[nio] (protected[nio] val byteBuffer: JByteBuffer) ext
 
   final def getShort(index: Int): IO[IndexOutOfBoundsException, Short] =
     ZIO.attempt(byteBuffer.getShort(index)).refineToOrDie[IndexOutOfBoundsException]
-}

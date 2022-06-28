@@ -8,7 +8,7 @@ import java.nio.charset.{MalformedInputException, UnmappableCharacterException}
 import zio.*
 import zio.stream.{ ZChannel, ZPipeline }
 
-final class CharsetEncoder private (val javaEncoder: j.CharsetEncoder) extends AnyVal {
+final class CharsetEncoder private (val javaEncoder: j.CharsetEncoder) extends AnyVal:
 
   def averageBytesPerChar: Float = javaEncoder.averageBytesPerChar()
 
@@ -55,16 +55,16 @@ final class CharsetEncoder private (val javaEncoder: j.CharsetEncoder) extends A
    * @param bufSize The size of the internal buffer used for encoding.
    *                Must be at least 50.
    */
-  def transducer(bufSize: Int = 5000): ZPipeline[Any, j.CharacterCodingException, Char, Byte] = {
-    val push: ZIO[Scope, Nothing, Option[Chunk[Char]] => IO[j.CharacterCodingException, Chunk[Byte]]] = {
-      for {
+  def transducer(bufSize: Int = 5000): ZPipeline[Any, j.CharacterCodingException, Char, Byte] =
+    val push: ZIO[Scope, Nothing, Option[Chunk[Char]] => IO[j.CharacterCodingException, Chunk[Byte]]] =
+      for
         _          <- reset
         charBuffer <- Buffer.char((bufSize.toFloat / this.averageBytesPerChar).round).orDie
         byteBuffer <- Buffer.byte(bufSize).orDie
-      } yield {
+      yield
 
         def handleCoderResult(coderResult: CoderResult) =
-          coderResult match {
+          coderResult match
             case CoderResult.Underflow | CoderResult.Overflow =>
               charBuffer.compact.orDie *>
                 byteBuffer.flip *>
@@ -74,59 +74,52 @@ final class CharsetEncoder private (val javaEncoder: j.CharsetEncoder) extends A
               ZIO.fail(new MalformedInputException(length))
             case CoderResult.Unmappable(length) =>
               ZIO.fail(new UnmappableCharacterException(length))
-          }
 
         (_: Option[Chunk[Char]])
           .map { inChunk =>
             def encodeChunk(inChars: Chunk[Char]): IO[j.CharacterCodingException, Chunk[Byte]] =
-              for {
+              for
                 bufRemaining <- charBuffer.remaining
-                (decodeChars, remainingChars) = {
-                  if (inChars.length > bufRemaining)
+                (decodeChars, remainingChars) =
+                  if inChars.length > bufRemaining then
                     inChars.splitAt(bufRemaining)
                   else
                     (inChars, Chunk.empty)
-                }
                 _              <- charBuffer.putChunk(decodeChars).orDie
                 _              <- charBuffer.flip
                 result         <- encode(charBuffer, byteBuffer, endOfInput = false)
                 encodedBytes   <- handleCoderResult(result)
-                remainderBytes <- if (remainingChars.isEmpty) ZIO.succeed(Chunk.empty) else encodeChunk(remainingChars)
-              } yield encodedBytes ++ remainderBytes
+                remainderBytes <- if remainingChars.isEmpty then ZIO.succeed(Chunk.empty) else encodeChunk(remainingChars)
+              yield encodedBytes ++ remainderBytes
 
             encodeChunk(inChunk)
           }
           .getOrElse {
             def endOfInput: IO[j.CharacterCodingException, Chunk[Byte]] =
-              for {
+              for
                 result         <- encode(charBuffer, byteBuffer, endOfInput = true)
                 encodedBytes   <- handleCoderResult(result)
-                remainderBytes <- if (result == CoderResult.Overflow) endOfInput else ZIO.succeed(Chunk.empty)
-              } yield encodedBytes ++ remainderBytes
+                remainderBytes <- if result == CoderResult.Overflow then endOfInput else ZIO.succeed(Chunk.empty)
+              yield encodedBytes ++ remainderBytes
             charBuffer.flip *> endOfInput.flatMap { encodedBytes =>
               def flushRemaining: IO[j.CharacterCodingException, Chunk[Byte]] =
-                for {
+                for
                   result         <- flush(byteBuffer)
                   encodedBytes   <- handleCoderResult(result)
-                  remainderBytes <- if (result == CoderResult.Overflow) flushRemaining else ZIO.succeed(Chunk.empty)
-                } yield encodedBytes ++ remainderBytes
+                  remainderBytes <- if result == CoderResult.Overflow then flushRemaining else ZIO.succeed(Chunk.empty)
+                yield encodedBytes ++ remainderBytes
               flushRemaining.map(encodedBytes ++ _)
             } <* charBuffer.clear <* byteBuffer.clear
           }
-      }
-    }
 
-    if (bufSize < 50)
+    if bufSize < 50 then
       ZPipeline.fromChannel(ZChannel.fromZIO(ZIO.die(new IllegalArgumentException(s"Buffer size is $bufSize, must be >= 50"))))
     else
       ZPipeline.fromPush(push)
-  }
 
-}
 
-object CharsetEncoder {
+object CharsetEncoder:
 
   def fromJava(javaEncoder: j.CharsetEncoder): CharsetEncoder =
     new CharsetEncoder(javaEncoder)
 
-}

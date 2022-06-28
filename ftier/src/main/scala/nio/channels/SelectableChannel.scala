@@ -17,7 +17,7 @@ import ftier.nio.core.channels.SelectionKey
 import ftier.nio.core.channels.SelectionKey.Operation
 import zio.*, managed.*
 
-trait SelectableChannel extends Channel {
+trait SelectableChannel extends Channel:
   protected val channel: JSelectableChannel
 
   final val provider: UIO[SelectorProvider] =
@@ -57,12 +57,11 @@ trait SelectableChannel extends Channel {
 
   final val blockingLock: UIO[AnyRef | Null] =
     ZIO.succeed(channel.blockingLock())
-}
 
 final class SocketChannel private[channels] (override protected[channels] val channel: JSocketChannel)
     extends SelectableChannel
     with GatheringByteChannel
-    with ScatteringByteChannel {
+    with ScatteringByteChannel:
 
   final def bind(local: SocketAddress): IO[IOException, Unit] =
     ZIO.attempt(channel.bind(local.jSocketAddress)).refineToOrDie[IOException].unit
@@ -103,33 +102,28 @@ final class SocketChannel private[channels] (override protected[channels] val ch
   final val localAddress: IO[IOException, Option[SocketAddress]] =
     ZIO.attempt(channel.getLocalAddress().toOption.map(SocketAddress(_)))
       .refineToOrDie[IOException]
-}
 
-object SocketChannel {
+object SocketChannel:
 
-  final def apply(channel: JSocketChannel): ZManaged[Any, IOException, SocketChannel] = {
+  final def apply(channel: JSocketChannel): ZManaged[Any, IOException, SocketChannel] =
     val open = ZIO.attempt(new SocketChannel(channel)).refineToOrDie[IOException]
     ZManaged.acquireReleaseWith(open)(_.close.orDie)
-  }
 
-  final val open: ZManaged[Any, IOException, SocketChannel] = {
+  final val open: ZManaged[Any, IOException, SocketChannel] =
     val open = ZIO.attempt(new SocketChannel(JSocketChannel.open().nn)).refineToOrDie[IOException]
     ZManaged.acquireReleaseWith(open)(_.close.orDie)
-  }
 
-  final def open(remote: SocketAddress): ZManaged[Any, IOException, SocketChannel] = {
+  final def open(remote: SocketAddress): ZManaged[Any, IOException, SocketChannel] =
     val open = ZIO
       .attempt(new SocketChannel(JSocketChannel.open(remote.jSocketAddress).nn))
       .refineToOrDie[IOException]
     ZManaged.acquireReleaseWith(open)(_.close.orDie)
-  }
 
   def fromJava(javaSocketChannel: JSocketChannel): ZManaged[Any, Nothing, SocketChannel] =
     ZIO.succeed(new SocketChannel(javaSocketChannel)).toManagedWith(_.close.orDie)
-}
 
 final class ServerSocketChannel private (override protected val channel: JServerSocketChannel)
-    extends SelectableChannel {
+    extends SelectableChannel:
 
   final def bind(local: SocketAddress): IO[IOException, Unit] =
     ZIO.attempt(channel.bind(local.jSocketAddress)).refineToOrDie[IOException].unit
@@ -155,20 +149,16 @@ final class ServerSocketChannel private (override protected val channel: JServer
 
   final val localAddress: IO[IOException, SocketAddress] =
     ZIO.attempt(new SocketAddress(channel.getLocalAddress().nn)).refineToOrDie[IOException]
-}
 
-object ServerSocketChannel {
+object ServerSocketChannel:
 
-  final def apply(channel: JServerSocketChannel): ZManaged[Any, IOException, ServerSocketChannel] = {
+  final def apply(channel: JServerSocketChannel): ZManaged[Any, IOException, ServerSocketChannel] =
     val open = ZIO.attempt(new ServerSocketChannel(channel)).refineToOrDie[IOException]
     ZManaged.acquireReleaseWith(open)(_.close.orDie)
-  }
 
-  final val open: ZManaged[Any, IOException, ServerSocketChannel] = {
+  final val open: ZManaged[Any, IOException, ServerSocketChannel] =
     val open = ZIO.attempt(new ServerSocketChannel(JServerSocketChannel.open().nn)).refineToOrDie[IOException]
     ZManaged.acquireReleaseWith(open)(_.close.orDie)
-  }
 
   def fromJava(javaChannel: JServerSocketChannel): ZManaged[Any, IOException, ServerSocketChannel] =
     ZIO.succeed(new ServerSocketChannel(javaChannel)).toManagedWith(_.close.orDie)
-}

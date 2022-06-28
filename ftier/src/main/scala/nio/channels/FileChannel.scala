@@ -18,7 +18,7 @@ import zio.managed.*
 
 final class FileChannel private[channels] (override protected[channels] val channel: JFileChannel)
     extends GatheringByteChannel
-    with ScatteringByteChannel {
+    with ScatteringByteChannel:
   def position: IO[IOException, Long] = ZIO.attempt(channel.position()).refineToOrDie[IOException]
 
   def position(newPosition: Long): IO[Exception, Unit] =
@@ -65,14 +65,12 @@ final class FileChannel private[channels] (override protected[channels] val chan
     shared: Boolean = false
   ): IO[Exception, Option[FileLock]] =
     ZIO.attempt(channel.tryLock(position, size, shared).toOption.map(FileLock.fromJava(_))).refineToOrDie[Exception]
-}
 
-object FileChannel {
+object FileChannel:
 
-  def apply(channel: JFileChannel): ZManaged[Any, Exception, FileChannel] = {
+  def apply(channel: JFileChannel): ZManaged[Any, Exception, FileChannel] =
     val ch = ZIO.attempt(new FileChannel(channel)).refineToOrDie[Exception]
     ZManaged.acquireReleaseWith(ch)(_.close.orDie)
-  }
 
   def open(
     path: Path,
@@ -94,9 +92,7 @@ object FileChannel {
 
   type MapMode = JFileChannel.MapMode
 
-  object MapMode {
+  object MapMode:
     def READ_ONLY: FileChannel.MapMode  = JFileChannel.MapMode.READ_ONLY.nn
     def READ_WRITE: FileChannel.MapMode = JFileChannel.MapMode.READ_WRITE.nn
     def PRIVATE: FileChannel.MapMode    = JFileChannel.MapMode.PRIVATE.nn
-  }
-}

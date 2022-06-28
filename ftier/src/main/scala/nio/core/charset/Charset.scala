@@ -8,7 +8,7 @@ import java.nio.{ charset as j }
 import scala.collection.JavaConverters.*
 import zio.*
 
-final class Charset private (val javaCharset: j.Charset) extends Ordered[Charset] {
+final class Charset private (val javaCharset: j.Charset) extends Ordered[Charset]:
 
   def aliases: Set[String] = javaCharset.aliases().nn.asScala.toSet
 
@@ -30,10 +30,9 @@ final class Charset private (val javaCharset: j.Charset) extends Ordered[Charset
     charBuffer.withJavaBuffer(jBuf => ZIO.succeed(Buffer.byteFromJava(javaCharset.encode(jBuf).nn)))
 
   override def equals(other: Any): Boolean =
-    other match {
+    other match
       case cs: Charset => javaCharset.equals(cs.javaCharset)
       case _           => false
-    }
 
   override def hashCode: Int = javaCharset.hashCode()
 
@@ -49,36 +48,35 @@ final class Charset private (val javaCharset: j.Charset) extends Ordered[Charset
   override def toString: String = javaCharset.toString
 
   def encodeChunk(chunk: Chunk[Char]): UIO[Chunk[Byte]] =
-    for {
+    for
       charBuf <- Buffer.char(chunk)
       byteBuf <- encode(charBuf)
       chunk   <- byteBuf.getChunk().orDie
-    } yield chunk
+    yield chunk
 
   def encodeString(s: String): UIO[Chunk[Byte]] =
-    for {
+    for
       charBuf <- Buffer.char(s)
       byteBuf <- encode(charBuf)
       chunk   <- byteBuf.getChunk().orDie
-    } yield chunk
+    yield chunk
 
   def decodeChunk(chunk: Chunk[Byte]): UIO[Chunk[Char]] =
-    for {
+    for
       byteBuf <- Buffer.byte(chunk)
       charBuf <- decode(byteBuf)
       chunk   <- charBuf.getChunk().orDie
-    } yield chunk
+    yield chunk
 
   def decodeString(chunk: Chunk[Byte]): UIO[String] =
-    for {
+    for
       byteBuf <- Buffer.byte(chunk)
       charBuf <- decode(byteBuf)
       s       <- charBuf.getString
-    } yield s
+    yield s
 
-}
 
-object Charset {
+object Charset:
 
   def fromJava(javaCharset: j.Charset): Charset = new Charset(javaCharset)
 
@@ -91,7 +89,7 @@ object Charset {
 
   def isSupported(name: String): Boolean = j.Charset.isSupported(name)
 
-  object Standard {
+  object Standard:
 
     import j.StandardCharsets.*
 
@@ -107,6 +105,4 @@ object Charset {
 
     val iso8859_1: Charset = Charset.fromJava(ISO_8859_1.nn)
 
-  }
 
-}

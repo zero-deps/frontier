@@ -14,7 +14,7 @@ import ftier.nio.core.{ ByteBuffer, SocketAddress }
  */
 final class DatagramChannel private[channels] (override protected[channels] val channel: JDatagramChannel)
     extends GatheringByteChannel
-    with ScatteringByteChannel {
+    with ScatteringByteChannel:
 
   /**
    * Binds this channel's underlying socket to the given local address. Passing `None` binds to an
@@ -23,10 +23,9 @@ final class DatagramChannel private[channels] (override protected[channels] val 
    * @param local the local address
    * @return the datagram channel bound to the local address
    */
-  def bind(local: Option[SocketAddress]): IO[IOException, DatagramChannel] = {
+  def bind(local: Option[SocketAddress]): IO[IOException, DatagramChannel] =
     val addr: JSocketAddress | Null = local.map(_.jSocketAddress).orNull
     ZIO.attempt(new DatagramChannel(channel.bind(addr).nn)).refineToOrDie[IOException]
-  }
 
   /**
    * Connects this channel's underlying socket to the given remote address.
@@ -133,9 +132,8 @@ final class DatagramChannel private[channels] (override protected[channels] val 
    */
   def write(src: ByteBuffer): IO[IOException, Int] =
     ZIO.attempt(channel.write(src.byteBuffer)).refineToOrDie[IOException]
-}
 
-object DatagramChannel {
+object DatagramChannel:
 
   /**
    * Opens a new datagram channel.
@@ -146,4 +144,3 @@ object DatagramChannel {
     ZIO.attempt(JDatagramChannel.open().nn)
       .refineToOrDie[Exception]
       .map(new DatagramChannel(_))
-}

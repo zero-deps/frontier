@@ -5,7 +5,7 @@ package core
 import zio.*
 import java.nio.{ BufferUnderflowException, ByteOrder, ReadOnlyBufferException, ShortBuffer as JShortBuffer }
 
-final class ShortBuffer(val shortBuffer: JShortBuffer) extends Buffer[Short](shortBuffer) {
+final class ShortBuffer(val shortBuffer: JShortBuffer) extends Buffer[Short](shortBuffer):
 
   override protected[nio] def array: IO[Exception, Array[Short]] =
     ZIO.attempt(shortBuffer.array().nn).refineToOrDie[Exception]
@@ -51,4 +51,3 @@ final class ShortBuffer(val shortBuffer: JShortBuffer) extends Buffer[Short](sho
 
   override def asReadOnlyBuffer: IO[Nothing, ShortBuffer] =
     ZIO.succeed(shortBuffer.asReadOnlyBuffer().nn).map(new ShortBuffer(_))
-}

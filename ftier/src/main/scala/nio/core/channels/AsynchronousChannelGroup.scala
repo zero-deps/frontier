@@ -14,7 +14,7 @@ import zio.*
 import scala.concurrent.ExecutionContextExecutorService
 import zio._
 
-object AsynchronousChannelGroup {
+object AsynchronousChannelGroup:
 
   def apply(executor: ExecutionContextExecutorService, initialSize: Int): IO[Exception, AsynchronousChannelGroup] =
     ZIO.attempt(
@@ -37,9 +37,8 @@ object AsynchronousChannelGroup {
     ZIO.attempt(
       new AsynchronousChannelGroup(JAsynchronousChannelGroup.withThreadPool(executor).nn)
     ).refineToOrDie[Exception]
-}
 
-class AsynchronousChannelGroup(val channelGroup: JAsynchronousChannelGroup) {
+class AsynchronousChannelGroup(val channelGroup: JAsynchronousChannelGroup):
 
   def awaitTermination(timeout: Duration): IO[Exception, Boolean] =
     ZIO.attempt(channelGroup.awaitTermination(timeout.asJava.toMillis, TimeUnit.MILLISECONDS))
@@ -55,4 +54,3 @@ class AsynchronousChannelGroup(val channelGroup: JAsynchronousChannelGroup) {
 
   val shutdownNow: IO[IOException, Unit] =
     ZIO.attempt(channelGroup.shutdownNow()).refineToOrDie[IOException]
-}

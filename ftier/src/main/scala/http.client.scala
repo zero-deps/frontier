@@ -14,7 +14,7 @@ import zio.ZIO.attemptBlocking
 case object Timeout
 type Err = Timeout.type
 
-def send(cp: ConnectionPool, request: Request): IO[Err, Response] = for {
+def send(cp: ConnectionPool, request: Request): IO[Err, Response] = for
   uri  <- ZIO.attempt(URI(request.url)).orDie
   reqb <- ZIO.attempt(HttpRequest.newBuilder(uri).nn.method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.bodyAsBytes)).nn).orDie
   _    <- if request.headers.nonEmpty then ZIO.attempt(reqb.headers(request.headers.toList.flatMap(x => x._1 :: x._2 :: Nil) *)).orDie else ZIO.unit
@@ -27,11 +27,11 @@ def send(cp: ConnectionPool, request: Request): IO[Err, Response] = for {
         case Some(e1) => ZIO.die(e1)
         case None => ZIO.die(e)
     ): IO[Err, Response])
-} yield resp
+yield resp
 
-def sendAsync(cp: ConnectionPool, request: Request): IO[Err, Response] = {
+def sendAsync(cp: ConnectionPool, request: Request): IO[Err, Response] =
   import scala.jdk.FutureConverters.*
-  for {
+  for
     uri  <- ZIO.attempt(URI(request.url)).orDie
     reqb <- ZIO.attempt(HttpRequest.newBuilder(uri).nn.method(request.method, HttpRequest.BodyPublishers.ofByteArray(request.bodyAsBytes)).nn).orDie
     _    <- if request.headers.nonEmpty then ZIO.attempt(reqb.headers(request.headers.toList.flatMap(x => x._1 :: x._2 :: Nil) *)).orDie else ZIO.unit
@@ -44,8 +44,7 @@ def sendAsync(cp: ConnectionPool, request: Request): IO[Err, Response] = {
           case Some(e1) => ZIO.die(e1)
           case None => ZIO.die(e)
       ): IO[Err, Response])
-  } yield resp
-}
+  yield resp
 
 case class ConnectionPool(client: HttpClient)
 

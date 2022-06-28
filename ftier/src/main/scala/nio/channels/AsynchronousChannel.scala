@@ -12,7 +12,7 @@ import zio.*, managed.*
 import ftier.nio.core.channels.AsynchronousChannelGroup
 import ftier.nio.core.{Buffer, SocketAddress}
 
-class AsynchronousByteChannel(private val channel: JAsynchronousByteChannel) {
+class AsynchronousByteChannel(private val channel: JAsynchronousByteChannel):
 
   /**
    *  Reads data from this channel into buffer, returning the number of bytes
@@ -24,15 +24,16 @@ class AsynchronousByteChannel(private val channel: JAsynchronousByteChannel) {
       .refineToOrDie[Exception]
 
   final def read(capacity: Int): IO[Exception, Chunk[Byte]] =
-    for {
+    for
       b <- Buffer.byte(capacity)
       l <- readBuffer(b)
       a <- b.array
-      r <- if (l == -1)
-             ZIO.fail(new IOException("Connection reset by peer"))
-           else
-             ZIO.succeed(Chunk.fromArray(a).take(l))
-    } yield r
+      r <-
+        if l == -1 then
+           ZIO.fail(new IOException("Connection reset by peer"))
+        else
+           ZIO.succeed(Chunk.fromArray(a).take(l))
+    yield r
 
   /**
    *  Writes data into this channel from buffer, returning the number of bytes written.
@@ -43,10 +44,10 @@ class AsynchronousByteChannel(private val channel: JAsynchronousByteChannel) {
       .refineToOrDie[Exception]
 
   final def write(chunk: Chunk[Byte]): IO[Exception, Int] =
-    for {
+    for
       b <- Buffer.byte(chunk)
       r <- writeBuffer(b)
-    } yield r
+    yield r
 
   /**
    * Closes this channel.
@@ -59,9 +60,8 @@ class AsynchronousByteChannel(private val channel: JAsynchronousByteChannel) {
    */
   final val isOpen: UIO[Boolean] =
     ZIO.succeed(channel.isOpen)
-}
 
-class AsynchronousServerSocketChannel(private val channel: JAsynchronousServerSocketChannel) {
+class AsynchronousServerSocketChannel(private val channel: JAsynchronousServerSocketChannel):
 
   /**
    * Binds the channel's socket to a local address and configures the socket
@@ -111,22 +111,20 @@ class AsynchronousServerSocketChannel(private val channel: JAsynchronousServerSo
    */
   final val isOpen: UIO[Boolean] =
     ZIO.succeed(channel.isOpen)
-}
 
-object AsynchronousServerSocketChannel {
+object AsynchronousServerSocketChannel:
 
-  def apply(): ZManaged[Any, Exception, AsynchronousServerSocketChannel] = {
+  def apply(): ZManaged[Any, Exception, AsynchronousServerSocketChannel] =
     val open = ZIO
       .attempt(JAsynchronousServerSocketChannel.open().nn)
       .refineToOrDie[Exception]
       .map(new AsynchronousServerSocketChannel(_))
 
     ZManaged.acquireReleaseWith(open)(_.close.orDie)
-  }
 
   def apply(
     channelGroup: AsynchronousChannelGroup
-  ): ZManaged[Any, Exception, AsynchronousServerSocketChannel] = {
+  ): ZManaged[Any, Exception, AsynchronousServerSocketChannel] =
     val open = ZIO
       .attempt(JAsynchronousServerSocketChannel.open(channelGroup.channelGroup).nn)
       .refineOrDie {
@@ -134,11 +132,9 @@ object AsynchronousServerSocketChannel {
       }.map(new AsynchronousServerSocketChannel(_))
 
     ZManaged.acquireReleaseWith(open)(_.close.orDie)
-  }
-}
 
 class AsynchronousSocketChannel(private val channel: JAsynchronousSocketChannel)
-    extends AsynchronousByteChannel(channel) {
+    extends AsynchronousByteChannel(channel):
 
   final def bind(address: SocketAddress): IO[Exception, Unit] =
     ZIO.attempt(channel.bind(address.jSocketAddress)).refineToOrDie[Exception].unit
@@ -174,15 +170,16 @@ class AsynchronousSocketChannel(private val channel: JAsynchronousSocketChannel)
     }.map(_.toInt).refineToOrDie[Exception]
 
   final def read[A](capacity: Int, timeout: Duration): IO[Exception, Chunk[Byte]] =
-    for {
+    for
       b <- Buffer.byte(capacity)
       l <- readBuffer(b, timeout)
       a <- b.array
-      r <- if (l == -1)
-             ZIO.fail(new IOException("Connection reset by peer"))
-           else
-             ZIO.succeed(Chunk.fromArray(a).take(l))
-    } yield r
+      r <-
+        if l == -1 then
+          ZIO.fail(new IOException("Connection reset by peer"))
+        else
+          ZIO.succeed(Chunk.fromArray(a).take(l))
+    yield r
 
   final private[nio] def readBuffer[A](
     dsts: List[Buffer[Byte]],
@@ -208,29 +205,28 @@ class AsynchronousSocketChannel(private val channel: JAsynchronousSocketChannel)
     length: Int,
     timeout: Duration
   ): IO[Exception, List[Chunk[Byte]]] =
-    for {
+    for
       bs <- ZIO.collectAll(capacities.map(Buffer.byte))
       l  <- readBuffer(bs, offset, length, timeout)
       as <- ZIO.collectAll(bs.map(_.array))
-      r  <- if (l == -1)
-              ZIO.fail(new IOException("Connection reset by peer"))
-            else
-              ZIO.succeed(as.map(Chunk.fromArray))
-    } yield r
-}
+      r  <-
+        if l == -1 then
+          ZIO.fail(new IOException("Connection reset by peer"))
+        else
+          ZIO.succeed(as.map(Chunk.fromArray))
+    yield r
 
-object AsynchronousSocketChannel {
+object AsynchronousSocketChannel:
 
-  def apply(): ZManaged[Any, Exception, AsynchronousSocketChannel] = {
+  def apply(): ZManaged[Any, Exception, AsynchronousSocketChannel] =
     val open = ZIO
       .attempt(JAsynchronousSocketChannel.open().nn)
       .refineToOrDie[Exception]
       .map(new AsynchronousSocketChannel(_))
 
     ZManaged.acquireReleaseWith(open)(_.close.orDie)
-  }
 
-  def apply(channelGroup: AsynchronousChannelGroup): ZManaged[Any, Exception, AsynchronousSocketChannel] = {
+  def apply(channelGroup: AsynchronousChannelGroup): ZManaged[Any, Exception, AsynchronousSocketChannel] =
     val open = ZIO
       .attempt(JAsynchronousSocketChannel.open(channelGroup.channelGroup).nn)
       .refineOrDie {
@@ -238,8 +234,6 @@ object AsynchronousSocketChannel {
       }.map(new AsynchronousSocketChannel(_))
 
     ZManaged.acquireReleaseWith(open)(_.close.orDie)
-  }
 
   def apply(asyncSocketChannel: JAsynchronousSocketChannel): AsynchronousSocketChannel =
     new AsynchronousSocketChannel(asyncSocketChannel)
-}

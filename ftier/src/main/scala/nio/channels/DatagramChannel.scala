@@ -14,12 +14,11 @@ import ftier.nio.core.{ ByteBuffer, SocketAddress }
  */
 final class DatagramChannel private[channels] (override protected[channels] val channel: JDatagramChannel)
     extends GatheringByteChannel
-    with ScatteringByteChannel {
+    with ScatteringByteChannel:
 
-  private def bind(local: Option[SocketAddress]): IO[IOException, DatagramChannel] = {
+  private def bind(local: Option[SocketAddress]): IO[IOException, DatagramChannel] =
     val addr: JSocketAddress | Null = local.map(_.jSocketAddress).orNull
     ZIO.attempt(channel.bind(addr)).as(this).refineToOrDie[IOException]
-  }
 
   private def connect(remote: SocketAddress): IO[IOException, DatagramChannel] =
     ZIO.attempt(channel.connect(remote.jSocketAddress)).as(this).refineToOrDie[IOException]
@@ -120,9 +119,8 @@ final class DatagramChannel private[channels] (override protected[channels] val 
    */
   def write(src: ByteBuffer): IO[IOException, Int] =
     ZIO.attempt(channel.write(src.byteBuffer)).refineToOrDie[IOException]
-}
 
-object DatagramChannel {
+object DatagramChannel:
 
   /**
    * Opens a datagram channel bound to the given local address as a managed resource.
@@ -149,12 +147,10 @@ object DatagramChannel {
    *
    * @return a new datagram channel
    */
-  private def open: ZManaged[Any, IOException, DatagramChannel] = {
+  private def open: ZManaged[Any, IOException, DatagramChannel] =
     val open = ZIO
       .attempt(JDatagramChannel.open().nn)
       .refineToOrDie[IOException]
       .map(new DatagramChannel(_))
 
     ZManaged.acquireReleaseWith(open)(_.close.orDie)
-  }
-}

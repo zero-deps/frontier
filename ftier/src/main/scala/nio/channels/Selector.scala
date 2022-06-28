@@ -12,7 +12,7 @@ import zio.*, managed.*
 
 import scala.jdk.CollectionConverters.*
 
-class Selector(private[nio] val selector: JSelector) {
+class Selector(private[nio] val selector: JSelector):
 
   final val provider: UIO[SelectorProvider] =
     ZIO.succeed(selector.provider().nn).map(new SelectorProvider(_))
@@ -55,12 +55,9 @@ class Selector(private[nio] val selector: JSelector) {
 
   final private[channels] val close: IO[IOException, Unit] =
     ZIO.attempt(selector.close()).refineToOrDie[IOException].unit
-}
 
-object Selector {
+object Selector:
 
-  final val make: ZManaged[Any, IOException, Selector] = {
+  final val make: ZManaged[Any, IOException, Selector] =
     val open = ZIO.attempt(new Selector(JSelector.open().nn)).refineToOrDie[IOException]
     ZManaged.acquireReleaseWith(open)(_.close.orDie)
-  }
-}

@@ -30,12 +30,11 @@ import org.http4s.websocket.WebSocketFrame._
 
 import scala.concurrent.duration._
 
-object BlazeWebSocketExample extends IOApp {
+object BlazeWebSocketExample extends IOApp:
   override def run(args: List[String]): IO[ExitCode] =
     BlazeWebSocketExampleApp[IO].stream.compile.drain.as(ExitCode.Success)
-}
 
-class BlazeWebSocketExampleApp[F[_]](implicit F: Async[F]) extends Http4sDsl[F] {
+class BlazeWebSocketExampleApp[F[_]](implicit F: Async[F]) extends Http4sDsl[F]:
   def routes(wsb: WebSocketBuilder2[F]): HttpRoutes[F] =
     HttpRoutes.of[F] {
       case GET -> Root / "wsecho" =>
@@ -58,7 +57,6 @@ class BlazeWebSocketExampleApp[F[_]](implicit F: Async[F]) extends Http4sDsl[F] 
       .bindHttp(9011)
       .withHttpWebSocketApp(routes(_).orNotFound)
       .serve
-}
 
 object BlazeWebSocketExampleApp {
   def apply[F[_]: Async]: BlazeWebSocketExampleApp[F] =

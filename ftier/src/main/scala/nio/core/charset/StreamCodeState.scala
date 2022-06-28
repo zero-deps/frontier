@@ -4,7 +4,7 @@ package core.charset
 
 sealed abstract private[charset] class StreamCodeState
 
-private[charset] object StreamCodeState {
+private[charset] object StreamCodeState:
 
   case object Pull extends StreamCodeState
 
@@ -14,4 +14,3 @@ private[charset] object StreamCodeState {
 
   case object Done extends StreamCodeState
 
-}

@@ -10,15 +10,14 @@ import java.nio.channels.{
 
 import zio.*
 
-object SelectionKey {
+object SelectionKey:
 
-  val JustCancelledKeyException: PartialFunction[Throwable, CancelledKeyException] = {
+  val JustCancelledKeyException: PartialFunction[Throwable, CancelledKeyException] =
     case e: CancelledKeyException => e
-  }
 
   sealed abstract class Operation(val intVal: Int)
 
-  object Operation {
+  object Operation:
     case object Read    extends Operation(JSelectionKey.OP_READ)
     case object Write   extends Operation(JSelectionKey.OP_WRITE)
     case object Connect extends Operation(JSelectionKey.OP_CONNECT)
@@ -31,10 +30,8 @@ object SelectionKey {
 
     final def toInt(set: Set[Operation]): Int =
       set.foldLeft(0)((ops, op) => ops | op.intVal)
-  }
-}
 
-class SelectionKey(private[nio] val selectionKey: JSelectionKey) {
+class SelectionKey(private[nio] val selectionKey: JSelectionKey):
   import SelectionKey.*
 
   final val channel: UIO[JSelectableChannel] =
@@ -87,4 +84,3 @@ class SelectionKey(private[nio] val selectionKey: JSelectionKey) {
 
   final val attachment: UIO[Option[AnyRef]] =
     ZIO.succeed(selectionKey.attachment()).map(_.toOption)
-}

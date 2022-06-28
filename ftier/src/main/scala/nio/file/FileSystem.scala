@@ -12,7 +12,7 @@ import scala.jdk.CollectionConverters.*
 import zio.ZIO.attemptBlocking
 import zio.managed.*
 
-final class FileSystem private (private val javaFileSystem: jf.FileSystem) {
+final class FileSystem private (private val javaFileSystem: jf.FileSystem):
   def provider: jf.spi.FileSystemProvider = javaFileSystem.provider().nn
 
   private def close: IO[Exception, Unit] =
@@ -38,9 +38,8 @@ final class FileSystem private (private val javaFileSystem: jf.FileSystem) {
 
   def newWatchService: IO[Exception, WatchService] =
     attemptBlocking(WatchService.fromJava(javaFileSystem.newWatchService().nn)).refineToOrDie[Exception]
-}
 
-object FileSystem {
+object FileSystem:
   private val close: FileSystem => IO[Nothing, Unit] = _.close.orDie
 
   def fromJava(javaFileSystem: jf.FileSystem): FileSystem = new FileSystem(javaFileSystem)
@@ -64,4 +63,3 @@ object FileSystem {
     attemptBlocking(new FileSystem(jf.FileSystems.newFileSystem(path.javaPath, loader).nn))
       .refineToOrDie[Exception]
       .toManagedWith(close)
-}

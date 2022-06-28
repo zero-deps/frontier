@@ -16,6 +16,7 @@ lazy val ftier = project
       "-language:postfixOps"
     , "-language:strictEquality"
     , "-Yexplicit-nulls"
+    , "-new-syntax"
     )
   )
 
@@ -29,6 +30,7 @@ lazy val bot = project
   , scalacOptions ++= Seq(
       "-language:strictEquality"
     , "-Yexplicit-nulls"
+    , "-new-syntax"
     )
   ).dependsOn(ftier)
 
@@ -40,6 +42,7 @@ lazy val demo = project
   , scalacOptions ++= Seq(
       "-language:strictEquality"
     , "-Yexplicit-nulls"
+    , "-new-syntax"
     )
   , run / fork := true
   ).dependsOn(ftier)

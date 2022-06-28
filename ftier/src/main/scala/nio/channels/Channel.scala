@@ -6,7 +6,7 @@ import java.nio.channels.{ Channel as JChannel }
 
 import zio.*
 
-trait Channel {
+trait Channel:
   protected val channel: JChannel
 
   final private[channels] val close: IO[Exception, Unit] =
@@ -17,4 +17,3 @@ trait Channel {
    */
   final def isOpen: UIO[Boolean] =
     ZIO.succeed(channel.isOpen)
-}

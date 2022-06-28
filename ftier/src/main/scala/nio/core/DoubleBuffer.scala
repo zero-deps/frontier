@@ -5,7 +5,7 @@ package core
 import zio.*
 import java.nio.{ BufferUnderflowException, ByteOrder, ReadOnlyBufferException, DoubleBuffer as JDoubleBuffer }
 
-final class DoubleBuffer(doubleBuffer: JDoubleBuffer) extends Buffer[Double](doubleBuffer) {
+final class DoubleBuffer(doubleBuffer: JDoubleBuffer) extends Buffer[Double](doubleBuffer):
 
   override protected[nio] def array: IO[Exception, Array[Double]] =
     ZIO.attempt(doubleBuffer.array().nn).refineToOrDie[Exception]
@@ -53,4 +53,3 @@ final class DoubleBuffer(doubleBuffer: JDoubleBuffer) extends Buffer[Double](dou
 
   override def asReadOnlyBuffer: IO[Nothing, DoubleBuffer] =
     ZIO.succeed(doubleBuffer.asReadOnlyBuffer().nn).map(new DoubleBuffer(_))
-}

@@ -19,7 +19,7 @@ import zio.Duration
 import scala.jdk.CollectionConverters.*
 import zio.*
 
-trait Watchable {
+trait Watchable:
   protected def javaWatchable: JWatchable
 
   final def register(watcher: WatchService, events: WatchEvent.Kind[?]*): IO[Exception, WatchKey] =
@@ -39,17 +39,14 @@ trait Watchable {
         ).nn
       )
     ).refineToOrDie[Exception]
-}
 
-object Watchable {
+object Watchable:
 
   def apply(jWatchable: JWatchable): Watchable =
-    new Watchable {
+    new Watchable:
       override protected val javaWatchable = jWatchable
-    }
-}
 
-final class WatchKey private[file] (private val javaKey: JWatchKey) {
+final class WatchKey private[file] (private val javaKey: JWatchKey):
   def isValid: UIO[Boolean] = ZIO.succeed(javaKey.isValid)
 
   def pollEvents: UIO[List[WatchEvent[?]]] = ZIO.succeed(javaKey.pollEvents().nn.asScala.toList)
@@ -63,9 +60,8 @@ final class WatchKey private[file] (private val javaKey: JWatchKey) {
       case javaPath: JPath => Path.fromJava(javaPath)
       case javaWatchable   => Watchable(javaWatchable.nn)
     }
-}
 
-final class WatchService private (private[file] val javaWatchService: JWatchService) {
+final class WatchService private (private[file] val javaWatchService: JWatchService):
   def close: IO[IOException, Unit] = ZIO.attempt(javaWatchService.close()).refineToOrDie[IOException]
 
   def poll: IO[ClosedWatchServiceException, Option[WatchKey]] =
@@ -77,10 +73,8 @@ final class WatchService private (private[file] val javaWatchService: JWatchServ
 
   def take: IO[Exception, WatchKey] =
     ZIO.attemptBlocking(new WatchKey(javaWatchService.take().nn)).refineToOrDie[Exception]
-}
 
-object WatchService {
+object WatchService:
   def forDefaultFileSystem: IO[Exception, WatchService] = FileSystem.default.newWatchService
 
   def fromJava(javaWatchService: JWatchService): WatchService = new WatchService(javaWatchService)
-}
