@@ -24,7 +24,7 @@ lazy val bot = project
   .settings(
     scalaVersion := "3.2.0-RC1"
   , libraryDependencies ++= Seq(
-      "dev.zio" %% "zio-json" % "0.3.0-RC8"
+      "dev.zio" %% "zio-json" % "0.3.0-RC9"
     )
   , scalacOptions ++= Seq(
       "-language:strictEquality"
