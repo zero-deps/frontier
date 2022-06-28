@@ -1,4 +1,5 @@
-package zio.nio
+package ftier
+package nio
 package core
 
 import java.net.{ InetAddress as JInetAddress }
@@ -37,35 +38,35 @@ class InetAddress private[nio] (private[nio] val jInetAddress: JInetAddress) {
     ZIO.attempt(jInetAddress.isReachable(networkInterface.jNetworkInterface, ttl, timeout))
       .refineToOrDie[Exception]
 
-  def hostname: String = jInetAddress.getHostName
+  def hostname: String = jInetAddress.getHostName.nn
 
-  def canonicalHostName: String = jInetAddress.getCanonicalHostName
+  def canonicalHostName: String = jInetAddress.getCanonicalHostName.nn
 
-  def address: Array[Byte] = jInetAddress.getAddress
+  def address: Array[Byte] = jInetAddress.getAddress.nn
 }
 
 object InetAddress {
 
   def byAddress(bytes: Array[Byte]): IO[Exception, InetAddress] =
-    ZIO.attempt(JInetAddress.getByAddress(bytes))
+    ZIO.attempt(JInetAddress.getByAddress(bytes).nn)
       .refineToOrDie[Exception]
       .map(new InetAddress(_))
 
   def byAddress(hostname: String, bytes: Array[Byte]): IO[Exception, InetAddress] =
-    ZIO.attempt(JInetAddress.getByAddress(hostname, bytes))
+    ZIO.attempt(JInetAddress.getByAddress(hostname, bytes).nn)
       .refineToOrDie[Exception]
       .map(new InetAddress(_))
 
   def byAllName(hostName: String): IO[Exception, Array[InetAddress]] =
-    ZIO.attempt(JInetAddress.getAllByName(hostName))
+    ZIO.attempt(JInetAddress.getAllByName(hostName).nn)
       .refineToOrDie[Exception]
-      .map(_.map(new InetAddress(_)))
+      .map(_.map(x => new InetAddress(x.nn)))
 
   def byName(hostName: String): IO[Exception, InetAddress] =
-    ZIO.attempt(JInetAddress.getByName(hostName))
+    ZIO.attempt(JInetAddress.getByName(hostName).nn)
       .refineToOrDie[Exception]
       .map(new InetAddress(_))
 
   def localHost: IO[Exception, InetAddress] =
-    ZIO.attempt(JInetAddress.getLocalHost).refineToOrDie[Exception].map(new InetAddress(_))
+    ZIO.attempt(JInetAddress.getLocalHost.nn).refineToOrDie[Exception].map(new InetAddress(_))
 }

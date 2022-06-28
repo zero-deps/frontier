@@ -1,19 +1,20 @@
-package zio.nio
+package ftier
+package nio
 package core.channels
 
 import java.io.IOException
 import java.nio.channels.{ Pipe as JPipe }
 
-import zio.nio.core.channels
+import ftier.nio.core.channels
 import zio.*
 
 class Pipe(private val pipe: JPipe) {
 
   final val source: UIO[Pipe.SourceChannel] =
-    ZIO.succeed(new channels.Pipe.SourceChannel(pipe.source()))
+    ZIO.succeed(new channels.Pipe.SourceChannel(pipe.source().nn))
 
   final val sink: UIO[Pipe.SinkChannel] =
-    ZIO.succeed(new Pipe.SinkChannel(pipe.sink()))
+    ZIO.succeed(new Pipe.SinkChannel(pipe.sink().nn))
 }
 
 object Pipe {
@@ -27,5 +28,5 @@ object Pipe {
       with SelectableChannel
 
   final val open: IO[IOException, Pipe] =
-    ZIO.attempt(new Pipe(JPipe.open())).refineToOrDie[IOException]
+    ZIO.attempt(new Pipe(JPipe.open().nn)).refineToOrDie[IOException]
 }

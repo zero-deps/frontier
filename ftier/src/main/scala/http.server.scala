@@ -2,7 +2,8 @@ package ftier
 package http
 package server
 
-import zio.*, nio.*, core.*, core.channels.*, stream.*
+import zio.*, stream.*
+import ftier.nio.*, ftier.nio.core.*, ftier.nio.core.channels.*
 import ws.*
 
 import ext.{*, given}

@@ -1,4 +1,5 @@
-package zio.nio
+package ftier
+package nio
 package core.channels
 
 import java.io.IOException
@@ -10,7 +11,7 @@ final class FileLock private[channels] (javaLock: JFileLock) {
 
   def acquiredBy: Channel =
     new Channel {
-      override protected val channel = javaLock.acquiredBy
+      override protected val channel = javaLock.acquiredBy.nn
     }
 
   def position: Long = javaLock.position

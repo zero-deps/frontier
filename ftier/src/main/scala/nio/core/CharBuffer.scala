@@ -1,4 +1,5 @@
-package zio.nio
+package ftier
+package nio
 package core
 
 import zio.*
@@ -7,18 +8,18 @@ import java.nio.{ BufferUnderflowException, ByteOrder, ReadOnlyBufferException, 
 final class CharBuffer(charBuffer: JCharBuffer) extends Buffer[Char](charBuffer) {
 
   override protected[nio] def array: IO[Exception, Array[Char]] =
-    ZIO.attempt(charBuffer.array()).refineToOrDie[Exception]
+    ZIO.attempt(charBuffer.array().nn).refineToOrDie[Exception]
 
-  override def order: ByteOrder = charBuffer.order()
+  override def order: ByteOrder = charBuffer.order().nn
 
   override def slice: IO[Nothing, CharBuffer] =
-    ZIO.succeed(charBuffer.slice()).map(new CharBuffer(_))
+    ZIO.succeed(charBuffer.slice().nn).map(new CharBuffer(_))
 
   override def compact: IO[ReadOnlyBufferException, Unit] =
     ZIO.attempt(charBuffer.compact()).unit.refineToOrDie[ReadOnlyBufferException]
 
   override def duplicate: IO[Nothing, CharBuffer] =
-    ZIO.succeed(new CharBuffer(charBuffer.duplicate()))
+    ZIO.succeed(new CharBuffer(charBuffer.duplicate().nn))
 
   def withJavaBuffer[R, E, A](f: JCharBuffer => ZIO[R, E, A]): ZIO[R, E, A] = f(charBuffer)
 
@@ -51,5 +52,5 @@ final class CharBuffer(charBuffer: JCharBuffer) extends Buffer[Char](charBuffer)
       .refineToOrDie[Exception]
 
   override def asReadOnlyBuffer: IO[Nothing, CharBuffer] =
-    ZIO.succeed(charBuffer.asReadOnlyBuffer()).map(new CharBuffer(_))
+    ZIO.succeed(charBuffer.asReadOnlyBuffer().nn).map(new CharBuffer(_))
 }

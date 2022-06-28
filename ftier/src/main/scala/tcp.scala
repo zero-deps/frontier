@@ -3,7 +3,8 @@ package tcp
 
 import java.nio.channels.{ServerSocketChannel as JServerSocketChannel, SocketChannel as JSocketChannel, CancelledKeyException, ClosedChannelException}
 import java.io.IOException
-import zio.*, nio.*, core.*, core.channels.*, managed.*
+import ftier.nio.*, ftier.nio.core.*, ftier.nio.core.channels.*
+import zio.*, managed.*
 
 import ext.{*, given}
 
@@ -18,7 +19,7 @@ def getSocketChannel(key: SelectionKey): Task[SocketChannel] =
 def getServerSocketChannel(key: SelectionKey): Task[ServerSocketChannel] =
   key.channel flatMap (ch => ZIO.attempt(ch.asInstanceOf[JServerSocketChannel])) flatMap ServerSocketChannel.fromJava
 
-def select[R](selector: Selector, f: SelectionKey => RIO[R, Any]): RIO[R, Unit] =
+def select(selector: Selector, f: SelectionKey => Task[Any]): Task[Unit] =
   for {
     _ <- selector.select(10 millisecond)
     keys <- selector.selectedKeys
@@ -69,7 +70,7 @@ def bind(
     _ <- serverChannel.register(accessSelector, SelectionKey.Operation.Accept)
     worker <- Ref.make[Int](0)
     afork <-
-      select[Any](accessSelector, key =>
+      select(accessSelector, key =>
         ZIO.whenZIO(key.isAcceptable: Task[Boolean]){
           for {
             server  <- getServerSocketChannel(key)

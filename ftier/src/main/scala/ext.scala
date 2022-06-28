@@ -1,16 +1,12 @@
 package ftier.ext
 
 import zio.*
-import scala.reflect.ClassTag
 
 def md5(xs: Array[Byte]): Task[String] =
   import java.security.MessageDigest
   ZIO.attempt(MessageDigest.getInstance("md5").nn).map(_.digest(xs).nn).map(_.hex.utf8)
 
 def uuid(): String = java.util.UUID.randomUUID().toString
-
-extension [A](a: A)// | Null)
-  inline def toOption: Option[A] = if a == null then None else Some(a)
 
 extension (xs: Array[Byte])
   inline def utf8: String = String(xs, "utf8")

@@ -1,4 +1,5 @@
-package zio.nio
+package ftier
+package nio
 package core
 
 import zio.*
@@ -7,18 +8,18 @@ import java.nio.{ BufferUnderflowException, ByteOrder, ReadOnlyBufferException, 
 final class ShortBuffer(val shortBuffer: JShortBuffer) extends Buffer[Short](shortBuffer) {
 
   override protected[nio] def array: IO[Exception, Array[Short]] =
-    ZIO.attempt(shortBuffer.array()).refineToOrDie[Exception]
+    ZIO.attempt(shortBuffer.array().nn).refineToOrDie[Exception]
 
-  override def order: ByteOrder = shortBuffer.order()
+  override def order: ByteOrder = shortBuffer.order().nn
 
   override def slice: IO[Nothing, ShortBuffer] =
-    ZIO.succeed(shortBuffer.slice()).map(new ShortBuffer(_))
+    ZIO.succeed(shortBuffer.slice().nn).map(new ShortBuffer(_))
 
   override def compact: IO[ReadOnlyBufferException, Unit] =
     ZIO.attempt(shortBuffer.compact()).unit.refineToOrDie[ReadOnlyBufferException]
 
   override def duplicate: IO[Nothing, ShortBuffer] =
-    ZIO.succeed(new ShortBuffer(shortBuffer.duplicate()))
+    ZIO.succeed(new ShortBuffer(shortBuffer.duplicate().nn))
 
   def withJavaBuffer[R, E, A](f: JShortBuffer => ZIO[R, E, A]): ZIO[R, E, A] = f(shortBuffer)
 
@@ -49,5 +50,5 @@ final class ShortBuffer(val shortBuffer: JShortBuffer) extends Buffer[Short](sho
       .refineToOrDie[Exception]
 
   override def asReadOnlyBuffer: IO[Nothing, ShortBuffer] =
-    ZIO.succeed(shortBuffer.asReadOnlyBuffer()).map(new ShortBuffer(_))
+    ZIO.succeed(shortBuffer.asReadOnlyBuffer().nn).map(new ShortBuffer(_))
 }

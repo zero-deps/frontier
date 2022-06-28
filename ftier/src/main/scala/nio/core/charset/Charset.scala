@@ -1,16 +1,16 @@
-package zio
+package ftier
 package nio
 package core
 package charset
 
-import java.nio.{ charset as j }
 import java.{ util as ju }
-
+import java.nio.{ charset as j }
 import scala.collection.JavaConverters.*
+import zio.*
 
 final class Charset private (val javaCharset: j.Charset) extends Ordered[Charset] {
 
-  def aliases: Set[String] = javaCharset.aliases().asScala.toSet
+  def aliases: Set[String] = javaCharset.aliases().nn.asScala.toSet
 
   def canEncode: Boolean = javaCharset.canEncode
 
@@ -20,14 +20,14 @@ final class Charset private (val javaCharset: j.Charset) extends Ordered[Charset
   def contains(cs: Charset): Boolean = javaCharset.contains(cs.javaCharset)
 
   def decode(byteBuffer: ByteBuffer): UIO[CharBuffer] =
-    byteBuffer.withJavaBuffer(jBuf => ZIO.succeed(Buffer.charFromJava(javaCharset.decode(jBuf))))
+    byteBuffer.withJavaBuffer(jBuf => ZIO.succeed(Buffer.charFromJava(javaCharset.decode(jBuf).nn)))
 
-  def displayName: String = javaCharset.displayName()
+  def displayName: String = javaCharset.displayName().nn
 
-  def displayName(locale: ju.Locale): String = javaCharset.displayName(locale)
+  def displayName(locale: ju.Locale): String = javaCharset.displayName(locale).nn
 
   def encode(charBuffer: CharBuffer): UIO[ByteBuffer] =
-    charBuffer.withJavaBuffer(jBuf => ZIO.succeed(Buffer.byteFromJava(javaCharset.encode(jBuf))))
+    charBuffer.withJavaBuffer(jBuf => ZIO.succeed(Buffer.byteFromJava(javaCharset.encode(jBuf).nn)))
 
   override def equals(other: Any): Boolean =
     other match {
@@ -39,12 +39,12 @@ final class Charset private (val javaCharset: j.Charset) extends Ordered[Charset
 
   def isRegistered: Boolean = javaCharset.isRegistered
 
-  def name: String = javaCharset.name()
+  def name: String = javaCharset.name().nn
 
   def newDecoder: CharsetDecoder =
-    CharsetDecoder.fromJava(javaCharset.newDecoder())
+    CharsetDecoder.fromJava(javaCharset.newDecoder().nn)
 
-  def newEncoder: CharsetEncoder = CharsetEncoder.fromJava(javaCharset.newEncoder())
+  def newEncoder: CharsetEncoder = CharsetEncoder.fromJava(javaCharset.newEncoder().nn)
 
   override def toString: String = javaCharset.toString
 
@@ -83,11 +83,11 @@ object Charset {
   def fromJava(javaCharset: j.Charset): Charset = new Charset(javaCharset)
 
   val availableCharsets: Map[String, Charset] =
-    j.Charset.availableCharsets().asScala.view.mapValues(new Charset(_)).toMap
+    j.Charset.availableCharsets().nn.asScala.view.mapValues(new Charset(_)).toMap
 
-  val defaultCharset: Charset = fromJava(j.Charset.defaultCharset())
+  val defaultCharset: Charset = fromJava(j.Charset.defaultCharset().nn)
 
-  def forName(name: String): Charset = fromJava(j.Charset.forName(name))
+  def forName(name: String): Charset = fromJava(j.Charset.forName(name).nn)
 
   def isSupported(name: String): Boolean = j.Charset.isSupported(name)
 
@@ -95,17 +95,17 @@ object Charset {
 
     import j.StandardCharsets.*
 
-    val utf8: Charset = Charset.fromJava(UTF_8)
+    val utf8: Charset = Charset.fromJava(UTF_8.nn)
 
-    val utf16: Charset = Charset.fromJava(UTF_16)
+    val utf16: Charset = Charset.fromJava(UTF_16.nn)
 
-    val utf16Be: Charset = Charset.fromJava(UTF_16BE)
+    val utf16Be: Charset = Charset.fromJava(UTF_16BE.nn)
 
-    val utf16Le: Charset = Charset.fromJava(UTF_16LE)
+    val utf16Le: Charset = Charset.fromJava(UTF_16LE.nn)
 
-    val usAscii: Charset = Charset.fromJava(US_ASCII)
+    val usAscii: Charset = Charset.fromJava(US_ASCII.nn)
 
-    val iso8859_1: Charset = Charset.fromJava(ISO_8859_1)
+    val iso8859_1: Charset = Charset.fromJava(ISO_8859_1.nn)
 
   }
 

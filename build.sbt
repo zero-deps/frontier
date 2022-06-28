@@ -15,7 +15,7 @@ lazy val ftier = project
   , scalacOptions ++= Seq(
       "-language:postfixOps"
     , "-language:strictEquality"
-    // , "-Yexplicit-nulls"
+    , "-Yexplicit-nulls"
     )
   )
 

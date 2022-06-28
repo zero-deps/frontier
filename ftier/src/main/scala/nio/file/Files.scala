@@ -1,4 +1,5 @@
-package zio.nio.file
+package ftier
+package nio.file
 
 import java.io.{ IOException, InputStream }
 import java.nio.charset.{ Charset, StandardCharsets }
@@ -17,7 +18,7 @@ import java.util.function.BiPredicate
 import java.util.{ Iterator as JIterator }
 
 
-import zio.nio.core.file.Path
+import ftier.nio.core.file.Path
 import zio.stream.ZStream
 import zio.*
 
@@ -31,23 +32,23 @@ object Files {
   def fromJavaIterator[A](iterator: JIterator[A]): ZStream[Any, RuntimeException, A] =
     ZStream.unfoldZIO(()) { _ =>
       attemptBlocking {
-        if (iterator.hasNext) Some((iterator.next(), ())) else None
+        if (iterator.hasNext) Some((iterator.next().nn, ())) else None
       }.refineToOrDie[RuntimeException]
     }
 
   def newDirectoryStream(dir: Path, glob: String = "*"): ZStream[Any, Exception, Path] = {
     val managed = ZManaged.fromAutoCloseable(
-      attemptBlocking(JFiles.newDirectoryStream(dir.javaPath, glob)).refineToOrDie[Exception]
+      attemptBlocking(JFiles.newDirectoryStream(dir.javaPath, glob).nn).refineToOrDie[Exception]
     )
-    ZStream.managed(managed).mapZIO(dirStream => ZIO.succeed(dirStream.iterator())).flatMap(fromJavaIterator).map(Path.fromJava)
+    ZStream.managed(managed).mapZIO(dirStream => ZIO.succeed(dirStream.iterator().nn)).flatMap(fromJavaIterator).map(Path.fromJava)
   }
 
   def newDirectoryStream(dir: Path, filter: Path => Boolean): ZStream[Any, Exception, Path] = {
-    val javaFilter: DirectoryStream.Filter[? >: JPath] = javaPath => filter(Path.fromJava(javaPath))
+    val javaFilter: DirectoryStream.Filter[? >: JPath] = javaPath => filter(Path.fromJava(javaPath.nn))
     val managed                                        = ZManaged.fromAutoCloseable(
-      attemptBlocking(JFiles.newDirectoryStream(dir.javaPath, javaFilter)).refineToOrDie[Exception]
+      attemptBlocking(JFiles.newDirectoryStream(dir.javaPath, javaFilter).nn).refineToOrDie[Exception]
     )
-    ZStream.managed(managed).mapZIO(dirStream => ZIO.succeed(dirStream.iterator())).flatMap(fromJavaIterator).map(Path.fromJava)
+    ZStream.managed(managed).mapZIO(dirStream => ZIO.succeed(dirStream.iterator().nn)).flatMap(fromJavaIterator).map(Path.fromJava)
   }
 
   def createFile(path: Path, attrs: FileAttribute[?]*): IO[Exception, Unit] =
@@ -65,7 +66,7 @@ object Files {
     prefix: Option[String],
     fileAttributes: Iterable[FileAttribute[?]]
   ): IO[Exception, Path] =
-    attemptBlocking(Path.fromJava(JFiles.createTempFile(dir.javaPath, prefix.orNull, suffix, fileAttributes.toSeq *)))
+    attemptBlocking(Path.fromJava(JFiles.createTempFile(dir.javaPath, prefix.orNull, suffix, fileAttributes.toSeq *).nn))
       .refineToOrDie[Exception]
 
   def createTempFile(
@@ -73,7 +74,7 @@ object Files {
     suffix: Option[String] = None,
     fileAttributes: FileAttribute[?]*
   ): IO[Exception, Path] =
-    attemptBlocking(Path.fromJava(JFiles.createTempFile(prefix, suffix.orNull, fileAttributes*)))
+    attemptBlocking(Path.fromJava(JFiles.createTempFile(prefix, suffix.orNull, fileAttributes*).nn))
       .refineToOrDie[Exception]
 
   def createTempDirectory(
@@ -81,14 +82,14 @@ object Files {
     prefix: Option[String],
     fileAttributes: Iterable[FileAttribute[?]]
   ): IO[Exception, Path] =
-    attemptBlocking(Path.fromJava(JFiles.createTempDirectory(dir.javaPath, prefix.orNull, fileAttributes.toSeq *)))
+    attemptBlocking(Path.fromJava(JFiles.createTempDirectory(dir.javaPath, prefix.orNull, fileAttributes.toSeq *).nn))
       .refineToOrDie[Exception]
 
   def createTempDirectory(
     prefix: Option[String],
     fileAttributes: Iterable[FileAttribute[?]]
   ): IO[Exception, Path] =
-    attemptBlocking(Path.fromJava(JFiles.createTempDirectory(prefix.orNull, fileAttributes.toSeq *)))
+    attemptBlocking(Path.fromJava(JFiles.createTempDirectory(prefix.orNull, fileAttributes.toSeq *).nn))
       .refineToOrDie[Exception]
 
   def createSymbolicLink(link: Path, target: Path, fileAttributes: FileAttribute[?]*): IO[Exception, Unit] =
@@ -112,10 +113,10 @@ object Files {
     attemptBlocking(JFiles.move(source.javaPath, target.javaPath, copyOptions *)).unit.refineToOrDie[Exception]
 
   def readSymbolicLink(link: Path): IO[Exception, Path] =
-    attemptBlocking(Path.fromJava(JFiles.readSymbolicLink(link.javaPath))).refineToOrDie[Exception]
+    attemptBlocking(Path.fromJava(JFiles.readSymbolicLink(link.javaPath).nn)).refineToOrDie[Exception]
 
   def getFileStore(path: Path): IO[IOException, FileStore] =
-    attemptBlocking(JFiles.getFileStore(path.javaPath)).refineToOrDie[IOException]
+    attemptBlocking(JFiles.getFileStore(path.javaPath).nn).refineToOrDie[IOException]
 
   def isSameFile(path: Path, path2: Path): IO[IOException, Boolean] =
     attemptBlocking(JFiles.isSameFile(path.javaPath, path2.javaPath)).refineToOrDie[IOException]
@@ -124,14 +125,14 @@ object Files {
     attemptBlocking(JFiles.isHidden(path.javaPath)).refineToOrDie[IOException]
 
   def probeContentType(path: Path): IO[IOException, String] =
-    attemptBlocking(JFiles.probeContentType(path.javaPath)).refineToOrDie[IOException]
+    attemptBlocking(JFiles.probeContentType(path.javaPath).nn).refineToOrDie[IOException]
 
   def useFileAttributeView[A <: FileAttributeView: ClassTag, B](path: Path, linkOptions: LinkOption*)(
     f: A => IO[Exception, B]
   ): IO[Exception, B] = {
     val viewClass =
       classTag[A].runtimeClass.asInstanceOf[Class[A]] // safe? because we know A is a subtype of FileAttributeView
-    attemptBlocking(JFiles.getFileAttributeView[A](path.javaPath, viewClass, linkOptions *)).orDie
+    attemptBlocking(JFiles.getFileAttributeView[A](path.javaPath, viewClass, linkOptions *).nn).orDie
       .flatMap(f)
   }
 
@@ -141,7 +142,7 @@ object Files {
   ): IO[Exception, A] = {
     // safe? because we know A is a subtype of BasicFileAttributes
     val attributeClass = classTag[A].runtimeClass.asInstanceOf[Class[A]]
-    attemptBlocking(JFiles.readAttributes(path.javaPath, attributeClass, linkOptions *))
+    attemptBlocking(JFiles.readAttributes(path.javaPath, attributeClass, linkOptions *).nn)
       .refineToOrDie[Exception]
   }
 
@@ -169,7 +170,7 @@ object Files {
       .refineToOrDie[Exception]
 
   def getAttribute(path: Path, attribute: Attribute, linkOptions: LinkOption*): IO[Exception, Object] =
-    attemptBlocking(JFiles.getAttribute(path.javaPath, attribute.toJava, linkOptions *)).refineToOrDie[Exception]
+    attemptBlocking(JFiles.getAttribute(path.javaPath, attribute.toJava, linkOptions *).nn).refineToOrDie[Exception]
 
   sealed trait AttributeNames {
 
@@ -186,9 +187,9 @@ object Files {
     case object All extends AttributeNames
 
     def fromJava(javaNames: String): AttributeNames =
-      javaNames.trim match {
+      javaNames.trim.nn match {
         case "*"  => All
-        case list => List(list.split(',').toList)
+        case list => List(list.nn.split(',').toList)
       }
 
     given CanEqual[All.type, AttributeNames] = CanEqual.derived
@@ -214,7 +215,7 @@ object Files {
     linkOptions: LinkOption*
   ): IO[Exception, Map[String, AnyRef]] =
     attemptBlocking(JFiles.readAttributes(path.javaPath, attributes.toJava, linkOptions *))
-      .map(_.asScala.toMap)
+      .map(_.nn.asScala.toMap)
       .refineToOrDie[Exception]
 
   def getPosixFilePermissions(
@@ -222,7 +223,7 @@ object Files {
     linkOptions: LinkOption*
   ): IO[Exception, Set[PosixFilePermission]] =
     attemptBlocking(JFiles.getPosixFilePermissions(path.javaPath, linkOptions *))
-      .map(_.asScala.toSet)
+      .map(_.nn.asScala.toSet)
       .refineToOrDie[Exception]
 
   def setPosixFilePermissions(path: Path, permissions: Set[PosixFilePermission]): IO[Exception, Unit] =
@@ -230,7 +231,7 @@ object Files {
       .refineToOrDie[Exception]
 
   def getOwner(path: Path, linkOptions: LinkOption*): IO[Exception, UserPrincipal] =
-    attemptBlocking(JFiles.getOwner(path.javaPath, linkOptions *)).refineToOrDie[Exception]
+    attemptBlocking(JFiles.getOwner(path.javaPath, linkOptions *).nn).refineToOrDie[Exception]
 
   def setOwner(path: Path, owner: UserPrincipal): IO[Exception, Unit] =
     attemptBlocking(JFiles.setOwner(path.javaPath, owner)).unit.refineToOrDie[Exception]
@@ -245,7 +246,7 @@ object Files {
     attemptBlocking(JFiles.isRegularFile(path.javaPath, linkOptions *)).orDie
 
   def getLastModifiedTime(path: Path, linkOptions: LinkOption*): IO[IOException, FileTime] =
-    attemptBlocking(JFiles.getLastModifiedTime(path.javaPath, linkOptions *)).refineToOrDie[IOException]
+    attemptBlocking(JFiles.getLastModifiedTime(path.javaPath, linkOptions *).nn).refineToOrDie[IOException]
 
   def setLastModifiedTime(path: Path, time: FileTime): IO[IOException, Unit] =
     attemptBlocking(JFiles.setLastModifiedTime(path.javaPath, time)).unit.refineToOrDie[IOException]
@@ -269,10 +270,10 @@ object Files {
     attemptBlocking(JFiles.isExecutable(path.javaPath)).orDie
 
   def readAllBytes(path: Path): IO[IOException, Chunk[Byte]] =
-    attemptBlocking(Chunk.fromArray(JFiles.readAllBytes(path.javaPath))).refineToOrDie[IOException]
+    attemptBlocking(Chunk.fromArray(JFiles.readAllBytes(path.javaPath).nn)).refineToOrDie[IOException]
 
-  def readAllLines(path: Path, charset: Charset = StandardCharsets.UTF_8): IO[IOException, List[String]] =
-    attemptBlocking(JFiles.readAllLines(path.javaPath, charset).asScala.toList).refineToOrDie[IOException]
+  def readAllLines(path: Path, charset: Charset = StandardCharsets.UTF_8.nn): IO[IOException, List[String]] =
+    attemptBlocking(JFiles.readAllLines(path.javaPath, charset).nn.asScala.toList).refineToOrDie[IOException]
 
   def writeBytes(path: Path, bytes: Chunk[Byte], openOptions: OpenOption*): IO[Exception, Unit] =
     attemptBlocking(JFiles.write(path.javaPath, bytes.toArray, openOptions *)).unit.refineToOrDie[Exception]
@@ -280,7 +281,7 @@ object Files {
   def writeLines(
     path: Path,
     lines: Iterable[CharSequence],
-    charset: Charset = StandardCharsets.UTF_8,
+    charset: Charset = StandardCharsets.UTF_8.nn,
     openOptions: Set[OpenOption] = Set.empty
   ): IO[Exception, Unit] =
     attemptBlocking(JFiles.write(path.javaPath, lines.asJava, charset, openOptions.toSeq *)).unit
@@ -290,8 +291,8 @@ object Files {
     ZStream
       .fromJavaIteratorManaged(
         ZManaged
-          .acquireReleaseWith(attemptBlocking(JFiles.list(path.javaPath)))(stream => ZIO.succeed(stream.close()))
-          .map(_.iterator())
+          .acquireReleaseWith(attemptBlocking(JFiles.list(path.javaPath).nn))(stream => ZIO.succeed(stream.close()))
+          .map(_.iterator().nn)
       )
       .map(Path.fromJava)
       .refineOrDie {
@@ -305,7 +306,7 @@ object Files {
   ): ZStream[Any, Exception, Path] =
     ZStream
       .fromZIO(
-        attemptBlocking(JFiles.walk(path.javaPath, maxDepth, visitOptions.toSeq *).iterator())
+        attemptBlocking(JFiles.walk(path.javaPath, maxDepth, visitOptions.toSeq *).nn.iterator().nn)
           .refineToOrDie[IOException]
       )
       .flatMap(fromJavaIterator)
@@ -314,10 +315,10 @@ object Files {
   def find(path: Path, maxDepth: Int = Int.MaxValue, visitOptions: Set[FileVisitOption] = Set.empty)(
     test: (Path, BasicFileAttributes) => Boolean
   ): ZStream[Any, Exception, Path] = {
-    val matcher: BiPredicate[JPath, BasicFileAttributes] = (path, attr) => test(Path.fromJava(path), attr)
+    val matcher: BiPredicate[JPath, BasicFileAttributes] = (path, attr) => test(Path.fromJava(path.nn), attr.nn)
     ZStream
       .fromZIO(
-        attemptBlocking(JFiles.find(path.javaPath, maxDepth, matcher, visitOptions.toSeq *).iterator())
+        attemptBlocking(JFiles.find(path.javaPath, maxDepth, matcher, visitOptions.toSeq *).nn.iterator().nn)
           .refineToOrDie[IOException]
       )
       .flatMap(fromJavaIterator)

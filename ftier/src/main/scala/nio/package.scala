@@ -1,4 +1,5 @@
-package zio.nio
+package ftier
+package nio
 
 extension (value: Long)
   /**
@@ -9,4 +10,3 @@ extension (value: Long)
   def eofCheck: Option[Long] = if value < 0L then None else Some(value)
 
 given [A]: CanEqual[A, A] = CanEqual.derived
-

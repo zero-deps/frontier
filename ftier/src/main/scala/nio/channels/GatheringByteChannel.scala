@@ -1,10 +1,12 @@
-package zio.nio.channels
+package ftier
+package nio
+package channels
 
 import java.nio.channels.{ GatheringByteChannel as JGatheringByteChannel }
 import java.nio.{ ByteBuffer as JByteBuffer }
 
 import zio.*
-import zio.nio.core.Buffer
+import ftier.nio.core.Buffer
 
 trait GatheringByteChannel extends Channel {
   override protected[channels] val channel: JGatheringByteChannel
@@ -22,6 +24,6 @@ trait GatheringByteChannel extends Channel {
 
   final def write(src: Chunk[Byte]): IO[Exception, Long] = write(List(src))
 
-  private def unwrap(srcs: List[Buffer[Byte]]): Array[JByteBuffer] =
+  private def unwrap(srcs: List[Buffer[Byte]]): Array[JByteBuffer | Null] | Null =
     srcs.map(d => d.buffer.asInstanceOf[JByteBuffer]).toList.toArray
 }

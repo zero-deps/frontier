@@ -2,7 +2,7 @@ package ftier
 package http
 
 import zio.*, test.*, Assertion.*
-import zio.nio.file.Files
+import ftier.nio.file.Files
 import scala.collection.immutable.ArraySeq
 import zio.test.ZIOSpecDefault
 

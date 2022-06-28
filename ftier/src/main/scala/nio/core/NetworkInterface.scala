@@ -1,4 +1,5 @@
-package zio.nio
+package ftier
+package nio
 package core
 
 import java.net.{ SocketException, NetworkInterface as JNetworkInterface }
@@ -10,22 +11,22 @@ import scala.collection.JavaConverters.*
 class NetworkInterface private[nio] (private[nio] val jNetworkInterface: JNetworkInterface) {
   import NetworkInterface.JustSocketException
 
-  def name: String = jNetworkInterface.getName
+  def name: String = jNetworkInterface.getName.nn
 
   def inetAddresses: Iterator[InetAddress] =
-    jNetworkInterface.getInetAddresses.asScala.map(new InetAddress(_))
+    jNetworkInterface.getInetAddresses.nn.asScala.map(new InetAddress(_))
 
   def interfaceAddresses: List[InterfaceAddress] =
-    jNetworkInterface.getInterfaceAddresses.asScala.map(new InterfaceAddress(_)).toList
+    jNetworkInterface.getInterfaceAddresses.nn.asScala.map(new InterfaceAddress(_)).toList
 
   def subInterfaces: Iterator[NetworkInterface] =
-    jNetworkInterface.getSubInterfaces.asScala.map(new NetworkInterface(_))
+    jNetworkInterface.getSubInterfaces.nn.asScala.map(new NetworkInterface(_))
 
-  def parent: NetworkInterface = new NetworkInterface(jNetworkInterface.getParent)
+  def parent: NetworkInterface = new NetworkInterface(jNetworkInterface.getParent.nn)
 
   def index: Int = jNetworkInterface.getIndex
 
-  def displayName: String = jNetworkInterface.getDisplayName
+  def displayName: String = jNetworkInterface.getDisplayName.nn
 
   val isUp: IO[SocketException, Boolean] =
     ZIO.attempt(jNetworkInterface.isUp).refineOrDie(JustSocketException)
@@ -40,7 +41,7 @@ class NetworkInterface private[nio] (private[nio] val jNetworkInterface: JNetwor
     ZIO.attempt(jNetworkInterface.supportsMulticast).refineOrDie(JustSocketException)
 
   val hardwareAddress: IO[SocketException, Array[Byte]] =
-    ZIO.attempt(jNetworkInterface.getHardwareAddress).refineOrDie(JustSocketException)
+    ZIO.attempt(jNetworkInterface.getHardwareAddress.nn).refineOrDie(JustSocketException)
 
   val mtu: IO[SocketException, Int] =
     ZIO.attempt(jNetworkInterface.getMTU).refineOrDie(JustSocketException)
@@ -55,22 +56,22 @@ object NetworkInterface {
   }
 
   def byName(name: String): IO[SocketException, NetworkInterface] =
-    ZIO.attempt(JNetworkInterface.getByName(name))
+    ZIO.attempt(JNetworkInterface.getByName(name).nn)
       .refineOrDie(JustSocketException)
       .map(new NetworkInterface(_))
 
   def byIndex(index: Integer): IO[SocketException, NetworkInterface] =
-    ZIO.attempt(JNetworkInterface.getByIndex(index))
+    ZIO.attempt(JNetworkInterface.getByIndex(index).nn)
       .refineOrDie(JustSocketException)
       .map(new NetworkInterface(_))
 
   def byInetAddress(address: InetAddress): IO[SocketException, NetworkInterface] =
-    ZIO.attempt(JNetworkInterface.getByInetAddress(address.jInetAddress))
+    ZIO.attempt(JNetworkInterface.getByInetAddress(address.jInetAddress).nn)
       .refineOrDie(JustSocketException)
       .map(new NetworkInterface(_))
 
   def networkInterfaces: IO[SocketException, Iterator[NetworkInterface]] =
-    ZIO.attempt(JNetworkInterface.getNetworkInterfaces.asScala)
+    ZIO.attempt(JNetworkInterface.getNetworkInterfaces.nn.asScala)
       .refineOrDie(JustSocketException)
       .map(_.map(new NetworkInterface(_)))
 }

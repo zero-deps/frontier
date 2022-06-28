@@ -1,4 +1,5 @@
-package zio.nio
+package ftier
+package nio
 package core
 
 import zio.*
@@ -7,21 +8,21 @@ import java.nio.{ BufferUnderflowException, ByteOrder, ReadOnlyBufferException, 
 class ByteBuffer protected[nio] (protected[nio] val byteBuffer: JByteBuffer) extends Buffer[Byte](byteBuffer) {
 
   final override protected[nio] def array: IO[UnsupportedOperationException, Array[Byte]] =
-    ZIO.attempt(byteBuffer.array()).refineToOrDie[UnsupportedOperationException]
+    ZIO.attempt(byteBuffer.array().nn).refineToOrDie[UnsupportedOperationException]
 
-  final def order: ByteOrder = byteBuffer.order()
+  final def order: ByteOrder = byteBuffer.order().nn
 
   def order(o: ByteOrder): UIO[Unit] =
     ZIO.succeed(byteBuffer.order(o)).unit
 
   final override def slice: IO[Nothing, ByteBuffer] =
-    ZIO.succeed(byteBuffer.slice()).map(new ByteBuffer(_))
+    ZIO.succeed(byteBuffer.slice().nn).map(new ByteBuffer(_))
 
   final override def compact: IO[ReadOnlyBufferException, Unit] =
     ZIO.attempt(byteBuffer.compact()).unit.refineToOrDie[ReadOnlyBufferException]
 
   final override def duplicate: IO[Nothing, ByteBuffer] =
-    ZIO.succeed(new ByteBuffer(byteBuffer.duplicate()))
+    ZIO.succeed(new ByteBuffer(byteBuffer.duplicate().nn))
 
   def withJavaBuffer[R, E, A](f: JByteBuffer => ZIO[R, E, A]): ZIO[R, E, A] = f(byteBuffer)
 
@@ -55,25 +56,25 @@ class ByteBuffer protected[nio] (protected[nio] val byteBuffer: JByteBuffer) ext
       .refineToOrDie[Exception]
 
   final override def asReadOnlyBuffer: IO[Nothing, ByteBuffer] =
-    ZIO.succeed(byteBuffer.asReadOnlyBuffer()).map(new ByteBuffer(_))
+    ZIO.succeed(byteBuffer.asReadOnlyBuffer().nn).map(new ByteBuffer(_))
 
   final def asCharBuffer: IO[Nothing, CharBuffer] =
-    ZIO.succeed(new CharBuffer(byteBuffer.asCharBuffer()))
+    ZIO.succeed(new CharBuffer(byteBuffer.asCharBuffer().nn))
 
   final def asDoubleBuffer: IO[Nothing, DoubleBuffer] =
-    ZIO.succeed(new DoubleBuffer(byteBuffer.asDoubleBuffer()))
+    ZIO.succeed(new DoubleBuffer(byteBuffer.asDoubleBuffer().nn))
 
   final def asFloatBuffer: IO[Nothing, FloatBuffer] =
-    ZIO.succeed(new FloatBuffer(byteBuffer.asFloatBuffer()))
+    ZIO.succeed(new FloatBuffer(byteBuffer.asFloatBuffer().nn))
 
   final def asIntBuffer: IO[Nothing, IntBuffer] =
-    ZIO.succeed(new IntBuffer(byteBuffer.asIntBuffer()))
+    ZIO.succeed(new IntBuffer(byteBuffer.asIntBuffer().nn))
 
   final def asLongBuffer: IO[Nothing, LongBuffer] =
-    ZIO.succeed(new LongBuffer(byteBuffer.asLongBuffer()))
+    ZIO.succeed(new LongBuffer(byteBuffer.asLongBuffer().nn))
 
   final def asShortBuffer: IO[Nothing, ShortBuffer] =
-    ZIO.succeed(new ShortBuffer(byteBuffer.asShortBuffer()))
+    ZIO.succeed(new ShortBuffer(byteBuffer.asShortBuffer().nn))
 
   final def putChar(value: Char): IO[Exception, Unit] =
     ZIO.attempt(byteBuffer.putChar(value)).unit.refineToOrDie[Exception]

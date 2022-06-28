@@ -2,7 +2,7 @@ package ftier
 package udp
 
 import zio.*, managed.*
-import zio.nio.*, channels.{Channel as _, *}, core.*
+import ftier.nio.*, channels.{Channel as _, *}, core.*
 
 import ext.{*, given}
 

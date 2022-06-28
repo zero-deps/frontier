@@ -1,4 +1,4 @@
-package zio
+package ftier
 package nio
 package core
 package charset

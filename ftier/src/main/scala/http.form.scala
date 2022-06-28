@@ -7,8 +7,8 @@ import java.nio.file.{Files as JFiles, Paths as JPaths}
 import scala.util.chaining.*
 import scala.annotation.tailrec
 import zio.*, stream.*
-import zio.nio.file.Files
-import zio.nio.core.file.Path
+import ftier.nio.file.Files
+import ftier.nio.core.file.Path
 
 import ext.given
 import zio.ZIO.attemptBlocking

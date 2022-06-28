@@ -1,47 +1,48 @@
-package zio
+package ftier
 package nio
 package core
 package charset
 
 import java.nio.{ charset as j }
 import java.nio.charset.{MalformedInputException, UnmappableCharacterException}
+import zio.*
 import zio.stream.{ ZChannel, ZPipeline }
 
 final class CharsetEncoder private (val javaEncoder: j.CharsetEncoder) extends AnyVal {
 
   def averageBytesPerChar: Float = javaEncoder.averageBytesPerChar()
 
-  def charset: Charset = Charset.fromJava(javaEncoder.charset())
+  def charset: Charset = Charset.fromJava(javaEncoder.charset().nn)
 
   def encode(in: CharBuffer): IO[j.CharacterCodingException, ByteBuffer] =
-    in.withJavaBuffer[Any, Throwable, ByteBuffer](jBuf => ZIO.attempt(Buffer.byteFromJava(javaEncoder.encode(jBuf))))
+    in.withJavaBuffer[Any, Throwable, ByteBuffer](jBuf => ZIO.attempt(Buffer.byteFromJava(javaEncoder.encode(jBuf).nn)))
       .refineToOrDie[j.CharacterCodingException]
 
   def encode(in: CharBuffer, out: ByteBuffer, endOfInput: Boolean): UIO[CoderResult] =
     in.withJavaBuffer { jIn =>
-      out.withJavaBuffer(jOut => ZIO.succeed(CoderResult.fromJava(javaEncoder.encode(jIn, jOut, endOfInput))))
+      out.withJavaBuffer(jOut => ZIO.succeed(CoderResult.fromJava(javaEncoder.encode(jIn, jOut, endOfInput).nn)))
     }
 
   def flush(out: ByteBuffer): UIO[CoderResult] =
     out.withJavaBuffer { jOut =>
-      ZIO.succeed(CoderResult.fromJava(javaEncoder.flush(jOut)))
+      ZIO.succeed(CoderResult.fromJava(javaEncoder.flush(jOut).nn))
     }
 
   def malformedInputAction: UIO[j.CodingErrorAction] =
-    ZIO.succeed(javaEncoder.malformedInputAction())
+    ZIO.succeed(javaEncoder.malformedInputAction().nn)
 
   def onMalformedInput(errorAction: j.CodingErrorAction): UIO[Unit] =
     ZIO.succeed(javaEncoder.onMalformedInput(errorAction)).unit
 
   def unmappableCharacterAction: UIO[j.CodingErrorAction] =
-    ZIO.succeed(javaEncoder.unmappableCharacterAction())
+    ZIO.succeed(javaEncoder.unmappableCharacterAction().nn)
 
   def onUnmappableCharacter(errorAction: j.CodingErrorAction): UIO[Unit] =
     ZIO.succeed(javaEncoder.onUnmappableCharacter(errorAction)).unit
 
   def maxCharsPerByte: Float = javaEncoder.maxBytesPerChar()
 
-  def replacement: UIO[Chunk[Byte]] = ZIO.succeed(Chunk.fromArray(javaEncoder.replacement()))
+  def replacement: UIO[Chunk[Byte]] = ZIO.succeed(Chunk.fromArray(javaEncoder.replacement().nn))
 
   def replaceWith(replacement: Chunk[Byte]): UIO[Unit] =
     ZIO.succeed(javaEncoder.replaceWith(replacement.toArray)).unit

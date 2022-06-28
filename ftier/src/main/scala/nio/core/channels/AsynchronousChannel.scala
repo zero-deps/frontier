@@ -1,22 +1,17 @@
-package zio.nio
+package ftier
+package nio
 package core.channels
 
+import ftier.nio.core.{ Buffer, SocketAddress }
 import java.io.IOException
 import java.lang.{ Integer as JInteger, Long as JLong, Void as JVoid }
 import java.net.SocketOption
-import java.nio.channels.{
-  AsynchronousByteChannel as JAsynchronousByteChannel,
-  AsynchronousServerSocketChannel as JAsynchronousServerSocketChannel,
-  AsynchronousSocketChannel as JAsynchronousSocketChannel
-}
 import java.nio.{ ByteBuffer as JByteBuffer }
+import java.nio.channels.{AsynchronousByteChannel as JAsynchronousByteChannel}
+import java.nio.channels.{AsynchronousServerSocketChannel as JAsynchronousServerSocketChannel}
+import java.nio.channels.{AsynchronousSocketChannel as JAsynchronousSocketChannel}
 import java.util.concurrent.TimeUnit
-
-
-import zio.interop.javaz.*
-import zio.nio.core.{ Buffer, SocketAddress }
 import zio.*
-import zio._
 
 class AsynchronousByteChannel(private val channel: JAsynchronousByteChannel) {
 
@@ -25,7 +20,7 @@ class AsynchronousByteChannel(private val channel: JAsynchronousByteChannel) {
    *  read, or -1 if no bytes were read.
    */
   final private[nio] def readBuffer(b: Buffer[Byte]): IO[Exception, Int] =
-    asyncWithCompletionHandler[JInteger](h => channel.read(b.buffer.asInstanceOf[JByteBuffer], (), h))
+    ZIO.asyncWithCompletionHandler[JInteger](h => channel.read(b.buffer.asInstanceOf[JByteBuffer], (), h))
       .map(_.toInt)
       .refineToOrDie[Exception]
 
@@ -44,7 +39,7 @@ class AsynchronousByteChannel(private val channel: JAsynchronousByteChannel) {
    *  Writes data into this channel from buffer, returning the number of bytes written.
    */
   final private[nio] def writeBuffer(b: Buffer[Byte]): IO[Exception, Int] =
-    asyncWithCompletionHandler[JInteger](h => channel.write(b.buffer.asInstanceOf[JByteBuffer], (), h))
+    ZIO.asyncWithCompletionHandler[JInteger](h => channel.write(b.buffer.asInstanceOf[JByteBuffer], (), h))
       .map(_.toInt)
       .refineToOrDie[Exception]
 
@@ -90,7 +85,7 @@ class AsynchronousServerSocketChannel(private val channel: JAsynchronousServerSo
    * Accepts a connection.
    */
   final val accept: IO[Exception, AsynchronousSocketChannel] =
-    asyncWithCompletionHandler[JAsynchronousSocketChannel](h => channel.accept((), h))
+    ZIO.asyncWithCompletionHandler[JAsynchronousSocketChannel](h => channel.accept((), h))
       .map(AsynchronousSocketChannel(_))
       .refineToOrDie[Exception]
 
@@ -101,9 +96,7 @@ class AsynchronousServerSocketChannel(private val channel: JAsynchronousServerSo
    * channel's socket is not bound.
    */
   final def localAddress: IO[Exception, Option[SocketAddress]] =
-    ZIO.attempt(
-      Option(channel.getLocalAddress).map(SocketAddress(_))
-    ).refineToOrDie[Exception]
+    ZIO.attempt(channel.getLocalAddress.toOption.map(SocketAddress(_))).refineToOrDie[Exception]
 
   /**
    * Closes this channel.
@@ -121,16 +114,14 @@ class AsynchronousServerSocketChannel(private val channel: JAsynchronousServerSo
 object AsynchronousServerSocketChannel {
 
   def apply(): IO[Exception, AsynchronousServerSocketChannel] =
-    ZIO.attempt(JAsynchronousServerSocketChannel.open())
+    ZIO.attempt(JAsynchronousServerSocketChannel.open().nn)
       .refineToOrDie[Exception]
       .map(new AsynchronousServerSocketChannel(_))
 
   def apply(
     channelGroup: AsynchronousChannelGroup
   ): IO[Exception, AsynchronousServerSocketChannel] =
-    ZIO.attempt(
-      JAsynchronousServerSocketChannel.open(channelGroup.channelGroup)
-    ).refineOrDie {
+    ZIO.attempt(JAsynchronousServerSocketChannel.open(channelGroup.channelGroup).nn).refineOrDie {
       case e: Exception => e
     }.map(new AsynchronousServerSocketChannel(_))
 }
@@ -151,23 +142,17 @@ class AsynchronousSocketChannel(private val channel: JAsynchronousSocketChannel)
     ZIO.attempt(channel.shutdownOutput()).refineToOrDie[Exception].unit
 
   final def remoteAddress: IO[Exception, Option[SocketAddress]] =
-    ZIO.attempt(
-      Option(channel.getRemoteAddress)
-        .map(SocketAddress(_))
-    ).refineToOrDie[Exception]
+    ZIO.attempt(channel.getRemoteAddress.toOption.map(SocketAddress(_))).refineToOrDie[Exception]
 
   final def localAddress: IO[Exception, Option[SocketAddress]] =
-    ZIO.attempt(
-      Option(channel.getLocalAddress)
-        .map(SocketAddress(_))
-    ).refineToOrDie[Exception]
+    ZIO.attempt(channel.getLocalAddress.toOption.map(SocketAddress(_))).refineToOrDie[Exception]
 
   final def connect(socketAddress: SocketAddress): IO[Exception, Unit] =
-    asyncWithCompletionHandler[JVoid](h => channel.connect(socketAddress.jSocketAddress, (), h)).unit
+    ZIO.asyncWithCompletionHandler[JVoid](h => channel.connect(socketAddress.jSocketAddress, (), h)).unit
       .refineToOrDie[Exception]
 
   final private[nio] def readBuffer[A](dst: Buffer[Byte], timeout: Duration): IO[Exception, Int] =
-    asyncWithCompletionHandler[JInteger] { h =>
+    ZIO.asyncWithCompletionHandler[JInteger] { h =>
       channel.read(
         dst.buffer.asInstanceOf[JByteBuffer],
         timeout.fold(Long.MaxValue, _.toNanos),
@@ -194,7 +179,7 @@ class AsynchronousSocketChannel(private val channel: JAsynchronousSocketChannel)
     length: Int,
     timeout: Duration
   ): IO[Exception, Long] =
-    asyncWithCompletionHandler[JLong](h =>
+    ZIO.asyncWithCompletionHandler[JLong](h =>
       channel.read(
         dsts.map(_.buffer.asInstanceOf[JByteBuffer]).toArray,
         offset,
@@ -226,14 +211,12 @@ class AsynchronousSocketChannel(private val channel: JAsynchronousSocketChannel)
 object AsynchronousSocketChannel {
 
   def apply(): IO[Exception, AsynchronousSocketChannel] =
-    ZIO.attempt(JAsynchronousSocketChannel.open())
+    ZIO.attempt(JAsynchronousSocketChannel.open().nn)
       .refineToOrDie[Exception]
       .map(new AsynchronousSocketChannel(_))
 
   def apply(channelGroup: AsynchronousChannelGroup): IO[Exception, AsynchronousSocketChannel] =
-    ZIO.attempt(
-      JAsynchronousSocketChannel.open(channelGroup.channelGroup)
-    ).refineOrDie {
+    ZIO.attempt(JAsynchronousSocketChannel.open(channelGroup.channelGroup).nn).refineOrDie {
       case e: Exception => e
     }.map(new AsynchronousSocketChannel(_))
 

@@ -1,4 +1,5 @@
-package zio.nio
+package ftier
+package nio
 
 package channels
 
@@ -6,7 +7,7 @@ import java.nio.channels.{ ScatteringByteChannel as JScatteringByteChannel }
 import java.nio.{ ByteBuffer as JByteBuffer }
 
 import zio.*
-import zio.nio.core.Buffer
+import ftier.nio.core.Buffer
 
 trait ScatteringByteChannel extends Channel {
   override protected[channels] val channel: JScatteringByteChannel
@@ -24,6 +25,6 @@ trait ScatteringByteChannel extends Channel {
       chunk     <- readCount.map(count => buffer.getChunk(count.toInt)).getOrElse(ZIO.succeed(Chunk.empty))
     } yield chunk
 
-  private def unwrap(dsts: List[Buffer[Byte]]): Array[JByteBuffer] =
+  private def unwrap(dsts: List[Buffer[Byte]]): Array[JByteBuffer | Null] | Null =
     dsts.map(d => d.buffer.asInstanceOf[JByteBuffer]).toList.toArray
 }

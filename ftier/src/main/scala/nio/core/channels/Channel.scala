@@ -1,4 +1,5 @@
-package zio.nio
+package ftier
+package nio
 package core.channels
 
 import java.nio.channels.{ Channel as JChannel }

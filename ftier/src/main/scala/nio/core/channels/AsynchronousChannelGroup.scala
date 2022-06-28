@@ -1,4 +1,5 @@
-package zio.nio
+package ftier
+package nio
 package core.channels
 
 import java.io.IOException
@@ -18,7 +19,7 @@ object AsynchronousChannelGroup {
   def apply(executor: ExecutionContextExecutorService, initialSize: Int): IO[Exception, AsynchronousChannelGroup] =
     ZIO.attempt(
       new AsynchronousChannelGroup(
-        JAsynchronousChannelGroup.withCachedThreadPool(executor, initialSize)
+        JAsynchronousChannelGroup.withCachedThreadPool(executor, initialSize).nn
       )
     ).refineToOrDie[Exception]
 
@@ -28,13 +29,13 @@ object AsynchronousChannelGroup {
   ): IO[Exception, AsynchronousChannelGroup] =
     ZIO.attempt(
       new AsynchronousChannelGroup(
-        JAsynchronousChannelGroup.withFixedThreadPool(threadsNo, threadsFactory)
+        JAsynchronousChannelGroup.withFixedThreadPool(threadsNo, threadsFactory).nn
       )
     ).refineToOrDie[Exception]
 
   def apply(executor: ExecutionContextExecutorService): IO[Exception, AsynchronousChannelGroup] =
     ZIO.attempt(
-      new AsynchronousChannelGroup(JAsynchronousChannelGroup.withThreadPool(executor))
+      new AsynchronousChannelGroup(JAsynchronousChannelGroup.withThreadPool(executor).nn)
     ).refineToOrDie[Exception]
 }
 
@@ -48,7 +49,7 @@ class AsynchronousChannelGroup(val channelGroup: JAsynchronousChannelGroup) {
 
   val isTerminated: UIO[Boolean] = ZIO.succeed(channelGroup.isTerminated)
 
-  val provider: UIO[JAsynchronousChannelProvider] = ZIO.succeed(channelGroup.provider())
+  val provider: UIO[JAsynchronousChannelProvider] = ZIO.succeed(channelGroup.provider().nn)
 
   val shutdown: UIO[Unit] = ZIO.succeed(channelGroup.shutdown())
 

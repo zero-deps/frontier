@@ -1,4 +1,5 @@
-package zio.nio
+package ftier
+package nio
 package core.charset
 
 sealed abstract class AutoDetect

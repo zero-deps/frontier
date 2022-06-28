@@ -1,4 +1,5 @@
-package zio.nio
+package ftier
+package nio
 package core
 
 import java.nio.{ MappedByteBuffer as JMappedByteBuffer }

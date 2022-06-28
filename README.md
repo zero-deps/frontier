@@ -8,7 +8,7 @@ Fast, efficient, pure-functional, effect-free WebSocket, HTTP and UDP server, HT
 
 ```
 sbt 'project demo' run
-curl -X POST -d 'hi' http://localhost:9012/echo
+curl -X POST -d 'こんにちは' http://localhost:9012/echo
 ```
 
 ## benchmark

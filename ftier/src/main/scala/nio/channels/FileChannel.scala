@@ -1,13 +1,15 @@
-package zio.nio.channels
+package ftier
+package nio
+package channels
 
 import java.io.IOException
 import java.nio.channels.{ FileChannel as JFileChannel }
 import java.nio.file.OpenOption
 import java.nio.file.attribute.FileAttribute
 
-import zio.nio.core.{ ByteBuffer, MappedByteBuffer }
-import zio.nio.core.channels.FileLock
-import zio.nio.core.file.Path
+import ftier.nio.core.{ ByteBuffer, MappedByteBuffer }
+import ftier.nio.core.channels.FileLock
+import ftier.nio.core.file.Path
 import zio.*
 
 import scala.collection.JavaConverters.*
@@ -47,7 +49,7 @@ final class FileChannel private[channels] (override protected[channels] val chan
       .refineToOrDie[Exception]
 
   def map(mode: JFileChannel.MapMode, position: Long, size: Long): IO[Exception, MappedByteBuffer] =
-    ZIO.attemptBlocking(new MappedByteBuffer(channel.map(mode, position, size)))
+    ZIO.attemptBlocking(new MappedByteBuffer(channel.map(mode, position, size).nn))
       .refineToOrDie[Exception]
 
   def lock(
@@ -55,14 +57,14 @@ final class FileChannel private[channels] (override protected[channels] val chan
     size: Long = Long.MaxValue,
     shared: Boolean = false
   ): IO[Exception, FileLock] =
-    attemptBlocking(FileLock.fromJava(channel.lock(position, size, shared))).refineToOrDie[Exception]
+    attemptBlocking(FileLock.fromJava(channel.lock(position, size, shared).nn)).refineToOrDie[Exception]
 
   def tryLock(
     position: Long = 0L,
     size: Long = Long.MaxValue,
     shared: Boolean = false
   ): IO[Exception, Option[FileLock]] =
-    ZIO.attempt(Option(channel.tryLock(position, size, shared)).map(FileLock.fromJava(_))).refineToOrDie[Exception]
+    ZIO.attempt(channel.tryLock(position, size, shared).toOption.map(FileLock.fromJava(_))).refineToOrDie[Exception]
 }
 
 object FileChannel {
@@ -77,12 +79,12 @@ object FileChannel {
     options: Set[? <: OpenOption],
     attrs: FileAttribute[?]*
   ): ZManaged[Any, Exception, FileChannel] =
-    ZIO.attempt(new FileChannel(JFileChannel.open(path.javaPath, options.asJava, attrs *)))
+    ZIO.attempt(new FileChannel(JFileChannel.open(path.javaPath, options.asJava, attrs *).nn))
       .refineToOrDie[Exception]
       .toManagedWith(_.close.orDie)
 
   def open(path: Path, options: OpenOption*): ZManaged[Any, Exception, FileChannel] =
-    attemptBlocking(new FileChannel(JFileChannel.open(path.javaPath, options *)))
+    attemptBlocking(new FileChannel(JFileChannel.open(path.javaPath, options *).nn))
       .refineToOrDie[Exception]
       .toManagedWith(_.close.orDie)
 
@@ -93,8 +95,8 @@ object FileChannel {
   type MapMode = JFileChannel.MapMode
 
   object MapMode {
-    def READ_ONLY: FileChannel.MapMode  = JFileChannel.MapMode.READ_ONLY
-    def READ_WRITE: FileChannel.MapMode = JFileChannel.MapMode.READ_WRITE
-    def PRIVATE: FileChannel.MapMode    = JFileChannel.MapMode.PRIVATE
+    def READ_ONLY: FileChannel.MapMode  = JFileChannel.MapMode.READ_ONLY.nn
+    def READ_WRITE: FileChannel.MapMode = JFileChannel.MapMode.READ_WRITE.nn
+    def PRIVATE: FileChannel.MapMode    = JFileChannel.MapMode.PRIVATE.nn
   }
 }

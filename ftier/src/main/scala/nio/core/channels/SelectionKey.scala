@@ -1,4 +1,5 @@
-package zio.nio
+package ftier
+package nio
 package core.channels
 
 import java.nio.channels.{
@@ -37,10 +38,10 @@ class SelectionKey(private[nio] val selectionKey: JSelectionKey) {
   import SelectionKey.*
 
   final val channel: UIO[JSelectableChannel] =
-    ZIO.succeed(selectionKey.channel())
+    ZIO.succeed(selectionKey.channel().nn)
 
   final val selector: UIO[Selector] =
-    ZIO.succeed(selectionKey.selector()).map(new Selector(_))
+    ZIO.succeed(selectionKey.selector().nn).map(new Selector(_))
 
   final val isValid: UIO[Boolean] =
     ZIO.succeed(selectionKey.isValid)
@@ -75,15 +76,15 @@ class SelectionKey(private[nio] val selectionKey: JSelectionKey) {
   final def isAcceptable: IO[CancelledKeyException, Boolean] =
     ZIO.attempt(selectionKey.isAcceptable()).refineOrDie(JustCancelledKeyException)
 
-  final def attach(ob: Option[AnyRef]): UIO[Option[AnyRef]] =
+  final def attach(ob: Option[AnyRef]): UIO[Option[AnyRef | Null]] =
     ZIO.succeed(Option(selectionKey.attach(ob.orNull)))
 
-  final def attach(ob: AnyRef): UIO[AnyRef] =
+  final def attach(ob: AnyRef): UIO[AnyRef | Null] =
     ZIO.succeed(selectionKey.attach(ob))
 
   final val detach: UIO[Unit] =
     ZIO.succeed(selectionKey.attach(null)).map(_ => ())
 
   final val attachment: UIO[Option[AnyRef]] =
-    ZIO.succeed(selectionKey.attachment()).map(Option(_))
+    ZIO.succeed(selectionKey.attachment()).map(_.toOption)
 }

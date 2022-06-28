@@ -1,7 +1,8 @@
 package ftier.demo
 
 import ftier.*, ws.*, http.*, server.*
-import zio.*, nio.*, core.*
+import ftier.nio.*, ftier.nio.core.*
+import zio.*
 
 object Demo extends ZIOAppDefault:
   def run =
@@ -14,7 +15,7 @@ val httpHandler: HttpHandler[Any] =
   case UpgradeRequest(r) if r.req.path == "/wsecho" =>
     ZIO.succeed(WsResp(r, wsHandler))
   case req@ Post(Root / "echo") =>
-    ZIO.succeed(Response(200, Nil, BodyChunk(Chunk.fromArray(req.bodyAsBytes))))
+    ZIO.succeed(Response(200, Nil, BodyChunk(Chunk.fromArray(req.bodyAsBytes) ++ Chunk.fromArray("\n".getBytes.nn))))
   case _ =>
     ZIO.succeed(Response.empty(404))
 

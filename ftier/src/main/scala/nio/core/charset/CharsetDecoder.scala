@@ -1,20 +1,21 @@
-package zio
+package ftier
 package nio
 package core
 package charset
 
-import java.nio.{ charset as j }
+import java.nio.{charset as j}
 import java.nio.charset.{MalformedInputException, UnmappableCharacterException}
-import zio.stream.{ ZChannel, ZPipeline }
+import zio.*
+import zio.stream.{ZChannel, ZPipeline}
 
 final class CharsetDecoder private (val javaDecoder: j.CharsetDecoder) extends AnyVal {
 
   def averageCharsPerByte: Float = javaDecoder.averageCharsPerByte()
 
-  def charset: Charset = Charset.fromJava(javaDecoder.charset())
+  def charset: Charset = Charset.fromJava(javaDecoder.charset().nn)
 
   def decode(in: ByteBuffer): IO[j.CharacterCodingException, CharBuffer] =
-    in.withJavaBuffer[Any, Throwable, CharBuffer](jBuf => ZIO.attempt(Buffer.charFromJava(javaDecoder.decode(jBuf))))
+    in.withJavaBuffer[Any, Throwable, CharBuffer](jBuf => ZIO.attempt(Buffer.charFromJava(javaDecoder.decode(jBuf).nn)))
       .refineToOrDie[j.CharacterCodingException]
 
   def decode(
@@ -25,7 +26,7 @@ final class CharsetDecoder private (val javaDecoder: j.CharsetDecoder) extends A
     in.withJavaBuffer { jIn =>
       out.withJavaBuffer { jOut =>
         ZIO.succeed(
-          CoderResult.fromJava(javaDecoder.decode(jIn, jOut, endOfInput))
+          CoderResult.fromJava(javaDecoder.decode(jIn, jOut, endOfInput).nn)
         )
       }
     }
@@ -34,7 +35,7 @@ final class CharsetDecoder private (val javaDecoder: j.CharsetDecoder) extends A
     ZIO.succeed {
       if (javaDecoder.isAutoDetecting)
         if (javaDecoder.isCharsetDetected)
-          AutoDetect.Detected(Charset.fromJava(javaDecoder.detectedCharset()))
+          AutoDetect.Detected(Charset.fromJava(javaDecoder.detectedCharset().nn))
         else
           AutoDetect.NotDetected
       else
@@ -43,24 +44,24 @@ final class CharsetDecoder private (val javaDecoder: j.CharsetDecoder) extends A
 
   def flush(out: CharBuffer): UIO[CoderResult] =
     out.withJavaBuffer { jOut =>
-      ZIO.succeed(CoderResult.fromJava(javaDecoder.flush(jOut)))
+      ZIO.succeed(CoderResult.fromJava(javaDecoder.flush(jOut).nn))
     }
 
   def malformedInputAction: UIO[j.CodingErrorAction] =
-    ZIO.succeed(javaDecoder.malformedInputAction())
+    ZIO.succeed(javaDecoder.malformedInputAction().nn)
 
   def onMalformedInput(errorAction: j.CodingErrorAction): UIO[Unit] =
     ZIO.succeed(javaDecoder.onMalformedInput(errorAction)).unit
 
   def unmappableCharacterAction: UIO[j.CodingErrorAction] =
-    ZIO.succeed(javaDecoder.unmappableCharacterAction())
+    ZIO.succeed(javaDecoder.unmappableCharacterAction().nn)
 
   def onUnmappableCharacter(errorAction: j.CodingErrorAction): UIO[Unit] =
     ZIO.succeed(javaDecoder.onUnmappableCharacter(errorAction)).unit
 
   def maxCharsPerByte: Float = javaDecoder.maxCharsPerByte()
 
-  def replacement: UIO[String] = ZIO.succeed(javaDecoder.replacement())
+  def replacement: UIO[String] = ZIO.succeed(javaDecoder.replacement().nn)
 
   def replaceWith(replacement: String): UIO[Unit] =
     ZIO.succeed(javaDecoder.replaceWith(replacement)).unit

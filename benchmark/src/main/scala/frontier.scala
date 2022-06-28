@@ -1,7 +1,8 @@
 package ftier.benchmark
 
 import ftier.*, ws.*, http.*, server.*
-import zio.*, nio.*, core.*
+import ftier.nio.*, ftier.nio.core.*
+import zio.*
 
 object Benchmark extends ZIOAppDefault:
   def run =

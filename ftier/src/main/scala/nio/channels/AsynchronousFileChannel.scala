@@ -1,18 +1,17 @@
-package zio.nio.channels
+package ftier
+package nio
+package channels
 
+import ftier.nio.core.{ Buffer, ByteBuffer }
+import ftier.nio.core.channels.FileLock
+import ftier.nio.core.file.Path
 import java.io.IOException
 import java.nio.channels.{ AsynchronousFileChannel as JAsynchronousFileChannel, FileLock as JFileLock }
 import java.nio.file.attribute.FileAttribute
 import java.nio.file.OpenOption
-
-import zio.interop.javaz.*
-import zio.nio.core.{ Buffer, ByteBuffer }
-import zio.nio.core.channels.FileLock
-import zio.nio.core.file.Path
-import zio.*, managed.*
-
-import scala.jdk.CollectionConverters.*
 import scala.concurrent.ExecutionContextExecutorService
+import scala.jdk.CollectionConverters.*
+import zio.*, managed.*
 
 class AsynchronousFileChannel(protected val channel: JAsynchronousFileChannel) extends Channel {
 
@@ -20,13 +19,13 @@ class AsynchronousFileChannel(protected val channel: JAsynchronousFileChannel) e
     ZIO.attempt(channel.force(metaData)).refineToOrDie[IOException]
 
   final def lock(position: Long = 0L, size: Long = Long.MaxValue, shared: Boolean = false): IO[Exception, FileLock] =
-    asyncWithCompletionHandler[JFileLock](channel.lock(position, size, shared, (), _))
+    ZIO.asyncWithCompletionHandler[JFileLock](channel.lock(position, size, shared, (), _))
       .map(FileLock.fromJava(_))
       .refineToOrDie[Exception]
 
   final private[nio] def readBuffer(dst: ByteBuffer, position: Long): IO[Exception, Int] =
     dst.withJavaBuffer { buf =>
-      asyncWithCompletionHandler[Integer](channel.read(buf, position, (), _))
+      ZIO.asyncWithCompletionHandler[Integer](channel.read(buf, position, (), _))
         .map(_.intValue)
         .refineToOrDie[Exception]
     }
@@ -45,11 +44,11 @@ class AsynchronousFileChannel(protected val channel: JAsynchronousFileChannel) e
     ZIO.attempt(channel.truncate(size)).refineToOrDie[Exception].unit
 
   final def tryLock(position: Long = 0L, size: Long = Long.MaxValue, shared: Boolean = false): IO[Exception, FileLock] =
-    ZIO.attempt(FileLock.fromJava(channel.tryLock(position, size, shared))).refineToOrDie[Exception]
+    ZIO.attempt(FileLock.fromJava(channel.tryLock(position, size, shared).nn)).refineToOrDie[Exception]
 
   final private[nio] def writeBuffer(src: ByteBuffer, position: Long): IO[Exception, Int] =
     src.withJavaBuffer { buf =>
-      asyncWithCompletionHandler[Integer](channel.write(buf, position, (), _))
+      ZIO.asyncWithCompletionHandler[Integer](channel.write(buf, position, (), _))
         .map(_.intValue)
         .refineToOrDie[Exception]
     }
@@ -65,7 +64,7 @@ object AsynchronousFileChannel {
 
   def open(file: Path, options: OpenOption*): ZManaged[Any, Exception, AsynchronousFileChannel] = {
     val open = ZIO
-      .attempt(new AsynchronousFileChannel(JAsynchronousFileChannel.open(file.javaPath, options *)))
+      .attempt(new AsynchronousFileChannel(JAsynchronousFileChannel.open(file.javaPath, options *).nn))
       .refineToOrDie[Exception]
 
     ZManaged.acquireReleaseWith(open)(_.close.orDie)
@@ -78,11 +77,7 @@ object AsynchronousFileChannel {
     attrs: Set[FileAttribute[?]] = Set.empty
   ): ZManaged[Any, Exception, AsynchronousFileChannel] = {
     val open = ZIO
-      .attempt(
-        new AsynchronousFileChannel(
-          JAsynchronousFileChannel.open(file.javaPath, options.asJava, executor.orNull, attrs.toSeq *)
-        )
-      )
+      .attempt(new AsynchronousFileChannel(JAsynchronousFileChannel.open(file.javaPath, options.asJava, executor.orNull, attrs.toSeq *).nn))
       .refineToOrDie[Exception]
 
     ZManaged.acquireReleaseWith(open)(_.close.orDie)

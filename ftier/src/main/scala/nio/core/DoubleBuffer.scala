@@ -1,4 +1,5 @@
-package zio.nio
+package ftier
+package nio
 package core
 
 import zio.*
@@ -7,18 +8,18 @@ import java.nio.{ BufferUnderflowException, ByteOrder, ReadOnlyBufferException, 
 final class DoubleBuffer(doubleBuffer: JDoubleBuffer) extends Buffer[Double](doubleBuffer) {
 
   override protected[nio] def array: IO[Exception, Array[Double]] =
-    ZIO.attempt(doubleBuffer.array()).refineToOrDie[Exception]
+    ZIO.attempt(doubleBuffer.array().nn).refineToOrDie[Exception]
 
-  override def order: ByteOrder = doubleBuffer.order
+  override def order: ByteOrder = doubleBuffer.order.nn
 
   override def slice: IO[Nothing, DoubleBuffer] =
-    ZIO.succeed(doubleBuffer.slice()).map(new DoubleBuffer(_))
+    ZIO.succeed(doubleBuffer.slice().nn).map(new DoubleBuffer(_))
 
   override def compact: IO[ReadOnlyBufferException, Unit] =
     ZIO.attempt(doubleBuffer.compact()).unit.refineToOrDie[ReadOnlyBufferException]
 
   override def duplicate: IO[Nothing, DoubleBuffer] =
-    ZIO.succeed(new DoubleBuffer(doubleBuffer.duplicate()))
+    ZIO.succeed(new DoubleBuffer(doubleBuffer.duplicate().nn))
 
   def withJavaBuffer[R, E, A](f: JDoubleBuffer => ZIO[R, E, A]): ZIO[R, E, A] = f(doubleBuffer)
 
@@ -51,5 +52,5 @@ final class DoubleBuffer(doubleBuffer: JDoubleBuffer) extends Buffer[Double](dou
       .refineToOrDie[Exception]
 
   override def asReadOnlyBuffer: IO[Nothing, DoubleBuffer] =
-    ZIO.succeed(doubleBuffer.asReadOnlyBuffer()).map(new DoubleBuffer(_))
+    ZIO.succeed(doubleBuffer.asReadOnlyBuffer().nn).map(new DoubleBuffer(_))
 }

@@ -1,4 +1,5 @@
-package zio.nio
+package ftier
+package nio
 package core
 
 import java.net.{ InetSocketAddress as JInetSocketAddress, SocketAddress as JSocketAddress }
@@ -28,9 +29,9 @@ class InetSocketAddress private[nio] (private val jInetSocketAddress: JInetSocke
   def port: Int = jInetSocketAddress.getPort
 
   def hostName: IO[Exception, String] =
-    ZIO.attempt(jInetSocketAddress.getHostName).refineToOrDie[Exception]
+    ZIO.attempt(jInetSocketAddress.getHostName.nn).refineToOrDie[Exception]
 
-  def hostString: String = jInetSocketAddress.getHostString
+  def hostString: String = jInetSocketAddress.getHostString.nn
 
   def isUnresolved: Boolean = jInetSocketAddress.isUnresolved
 
@@ -78,7 +79,7 @@ object SocketAddress {
         .map(new InetSocketAddress(_))
 
     def createUnresolved(host: String, port: Int): IO[Exception, InetSocketAddress] =
-      ZIO.attempt(JInetSocketAddress.createUnresolved(host, port))
+      ZIO.attempt(JInetSocketAddress.createUnresolved(host, port).nn)
         .refineToOrDie[Exception]
         .map(new InetSocketAddress(_))
   }
