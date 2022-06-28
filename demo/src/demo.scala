@@ -14,7 +14,11 @@ object Demo extends ZIOAppDefault:
 val httpHandler: HttpHandler[Any] =
   case UpgradeRequest(r) if r.req.path == "/wsecho" =>
     ZIO.succeed(WsResp(r, wsHandler))
+  case req@ Get(Root / "echo") =>
+    ZIO.succeed(Response(200, Nil, BodyChunk(Chunk.fromArray(req.bodyAsBytes) ++ Chunk.fromArray("\n".getBytes.nn))))
   case req@ Post(Root / "echo") =>
+    ZIO.succeed(Response(200, Nil, BodyChunk(Chunk.fromArray(req.bodyAsBytes) ++ Chunk.fromArray("\n".getBytes.nn))))
+  case req@ Request("TRACE", _, _, _) =>
     ZIO.succeed(Response(200, Nil, BodyChunk(Chunk.fromArray(req.bodyAsBytes) ++ Chunk.fromArray("\n".getBytes.nn))))
   case _ =>
     ZIO.succeed(Response.empty(404))
