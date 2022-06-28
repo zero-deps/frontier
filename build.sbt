@@ -14,7 +14,7 @@ lazy val ftier = project
   , testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
   , scalacOptions ++= Seq(
       "-language:postfixOps"
-    // , "-language:strictEquality"
+    , "-language:strictEquality"
     // , "-Yexplicit-nulls"
     )
   )

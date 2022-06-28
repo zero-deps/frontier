@@ -1,4 +1,5 @@
-package zio.nio.core.channels
+package zio.nio
+package core.channels
 
 import java.io.IOException
 import java.lang.{ Integer as JInteger, Long as JLong, Void as JVoid }

@@ -190,6 +190,8 @@ object Files {
         case "*"  => All
         case list => List(list.split(',').toList)
       }
+
+    given CanEqual[All.type, AttributeNames] = CanEqual.derived
   }
 
   final case class Attributes(attributeNames: AttributeNames, viewName: String = "base") {

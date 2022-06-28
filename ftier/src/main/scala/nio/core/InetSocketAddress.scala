@@ -1,7 +1,7 @@
-package zio.nio.core
+package zio.nio
+package core
 
 import java.net.{ InetSocketAddress as JInetSocketAddress, SocketAddress as JSocketAddress }
-
 import zio.*
 
 class SocketAddress private[nio] (private[nio] val jSocketAddress: JSocketAddress) {

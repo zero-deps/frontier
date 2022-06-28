@@ -1,4 +1,5 @@
-package zio.nio.core.charset
+package zio.nio
+package core.charset
 
 sealed abstract private[charset] class StreamCodeState
 

@@ -1,4 +1,5 @@
-package zio.nio.core
+package zio.nio
+package core
 
 import zio.*
 import java.nio.{ BufferUnderflowException, ByteOrder, ReadOnlyBufferException, DoubleBuffer as JDoubleBuffer }

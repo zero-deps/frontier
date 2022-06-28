@@ -1,4 +1,5 @@
-package zio.nio.core.channels
+package zio.nio
+package core.channels
 
 import java.nio.channels.{ Channel as JChannel }
 

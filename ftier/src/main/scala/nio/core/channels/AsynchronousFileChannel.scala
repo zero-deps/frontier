@@ -1,4 +1,5 @@
-package zio.nio.core.channels
+package zio.nio
+package core.channels
 
 import java.io.IOException
 import java.nio.channels.{ AsynchronousFileChannel as JAsynchronousFileChannel, FileLock as JFileLock }

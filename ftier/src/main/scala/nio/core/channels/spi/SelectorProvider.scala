@@ -1,4 +1,5 @@
-package zio.nio.core.channels.spi
+package zio.nio
+package core.channels.spi
 
 import java.io.IOException
 import java.net.ProtocolFamily

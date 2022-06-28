@@ -1,4 +1,5 @@
-package zio.nio.core
+package zio.nio
+package core
 
 import java.net.{ InterfaceAddress as JinterfaceAddress }
 

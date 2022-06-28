@@ -1,4 +1,5 @@
-package zio.nio.core.file
+package zio.nio
+package core.file
 
 import java.io.IOException
 import java.nio.file.{

@@ -1,4 +1,5 @@
-package zio.nio.core.file
+package zio.nio
+package core.file
 
 import java.net.URI
 import java.nio.file.attribute.UserPrincipalLookupService
