@@ -2,7 +2,6 @@ package ftier
 package http
 
 import zio.test.*, Assertion.*
-import zio.test.ZIOSpecDefault
 
 object UrlSpec extends ZIOSpecDefault:
   def spec = suite("UrlSpec")(

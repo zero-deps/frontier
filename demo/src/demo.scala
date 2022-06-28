@@ -8,7 +8,17 @@ object Demo extends ZIOAppDefault:
   def run =
     for
       addr <- SocketAddress.inetSocketAddress(9012).orDie
-      _ <- bind(addr, httpHandler, ServerConf(workers=10))
+      httpServer <- bind(addr, httpHandler, ServerConf(workers=10)).fork
+      body <- ZIO.succeed("こんにちは")
+      _ <- Console.printLine(s"TRACE http://localhost:9012 '$body'")
+      httpClient <- http.client.httpClient
+      r <-
+        http.client.sendAsync(
+          httpClient
+        , Request("TRACE", "http://localhost:9012", Map.empty, BodyChunk(Chunk.fromArray(body.getBytes.nn)))
+        )
+      _ <- Console.print(s"200 OK '${r.bodyAsString}'")
+      _ <- httpServer.join
     yield ()
 
 val httpHandler: HttpHandler[Any] =

@@ -95,6 +95,11 @@ case class Response
       case BodyChunk(c) => c.toArray
       case _ => Array.emptyByteArray
 
+  lazy val bodyAsString: String =
+    body match
+      case BodyChunk(c) => String(c.toArray, "utf8")
+      case _ => ""
+
 object Response:
   def empty(code: Int): Response = new Response(code, Nil, BodyChunk(Chunk.empty))
 

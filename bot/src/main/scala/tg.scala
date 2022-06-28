@@ -2,7 +2,6 @@ package ftier
 
 import ftier.ext.{*, given}
 import ftier.http
-import ftier.http.client.*
 import java.net.URLEncoder
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
@@ -53,8 +52,8 @@ object tg:
       (for
         url <- ZIO.succeed(s"https://api.telegram.org/bot$token/sendMessage")
         payload <- ZIO.attempt(s"chat_id=$telegramId&disable_notification=$muted&text="+URLEncoder.encode(text, "utf8")).orDie
-        cp <- connectionPool
-        _ <- send(cp, http.Request("POST", url, Map("Content-Type" -> "application/x-www-form-urlencoded"), payload))
+        httpClient <- http.client.httpClient
+        _ <- http.client.send(httpClient, http.Request("POST", url, Map("Content-Type" -> "application/x-www-form-urlencoded"), payload))
       yield ()).catchAll{
         case http.client.Timeout => ZIO.unit
       }
