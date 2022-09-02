@@ -1,3 +1,5 @@
+val scala = "3.2.0"
+
 lazy val `ftier-root` = project
   .in(file("."))
   .aggregate(ftier, bot, demo, benchmark)
@@ -5,7 +7,7 @@ lazy val `ftier-root` = project
 lazy val ftier = project
   .in(file("ftier"))
   .settings(
-    scalaVersion := "3.2.0-RC2"
+    scalaVersion := scala
   , libraryDependencies ++= Seq(
       "dev.zio" %% "zio-streams" % "2.0.0"
     , "dev.zio" %% "zio-managed" % "2.0.0"
@@ -23,7 +25,7 @@ lazy val ftier = project
 lazy val bot = project
   .in(file("bot"))
   .settings(
-    scalaVersion := "3.2.0-RC2"
+    scalaVersion := scala
   , libraryDependencies ++= Seq(
       "dev.zio" %% "zio-json" % "0.3.0-RC10"
     )
@@ -38,7 +40,7 @@ lazy val demo = project
   .in(file("demo"))
   .settings(
     Compile / scalaSource := baseDirectory.value / "src"
-  , scalaVersion := "3.2.0-RC2"
+  , scalaVersion := scala
   , scalacOptions ++= Seq(
       "-language:strictEquality"
     , "-Yexplicit-nulls"
@@ -56,7 +58,7 @@ lazy val benchmark = project
     , "io.gatling.highcharts" % "gatling-charts-highcharts" % "3.7.6" % "it"
     , "io.gatling"            % "gatling-test-framework"    % "3.7.6" % "it"
     )
-  , scalaVersion := "3.2.0-RC2"
+  , scalaVersion := scala
   , run / fork := true
   ).dependsOn(ftier).enablePlugins(GatlingPlugin)
 

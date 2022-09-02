@@ -5,3 +5,5 @@
 /tmp/
 target/
 .DS_Store
+.metals
+.vscode
