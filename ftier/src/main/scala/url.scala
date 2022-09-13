@@ -3,8 +3,6 @@ package http
 
 import scala.annotation.*
 
-import ext.{*, given}
-
 case class Url(p: P, q: String)
 
 object Url:

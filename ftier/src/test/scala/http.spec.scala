@@ -1,9 +1,10 @@
 package ftier
 package http
 
-import ftier.*, ws.*, http.*, server.*
-import ftier.nio.*, ftier.nio.core.*
+import java.net.InetSocketAddress
 import zio.*, test.*, Assertion.*
+
+import server.*
 
 object HttpSpec extends ZIOSpecDefault:
   val httpHandler: HttpHandler[Any] =
@@ -15,7 +16,7 @@ object HttpSpec extends ZIOSpecDefault:
       ZIO.succeed(Response.empty(404))
 
   val port = 9014
-  val addr = SocketAddress.inetSocketAddress(port).orDie
+  val addr = ZIO.attempt(InetSocketAddress(port)).orDie
   val body = "こんにちは"
   val bodyChunk = BodyChunk(Chunk.fromArray(body.getBytes.nn))
   val httpClient = http.client.httpClient
@@ -25,7 +26,7 @@ object HttpSpec extends ZIOSpecDefault:
       .retry(Schedule.linear(10 milliseconds) && Schedule.recurs(300))
 
   def spec = suite("HttpSpec")(
-    test("server answers on defined request") {
+    test("server answers on defined request"){
       for
         httpServer <- addr.flatMap(bind(_, httpHandler, ServerConf(workers=10)).fork)
         _ <- Live.live(waitForHttpServer)
@@ -33,7 +34,7 @@ object HttpSpec extends ZIOSpecDefault:
         r <- httpClient.flatMap(http.client.sendAsync(_, req))
       yield assertTrue(r.bodyAsString == body)
     },
-    test("server support get request with body") {
+    test("server support get request with body"){
       for
         httpServer <- addr.flatMap(bind(_, httpHandler, ServerConf(workers=10)).fork)
         _ <- Live.live(waitForHttpServer)
@@ -41,7 +42,7 @@ object HttpSpec extends ZIOSpecDefault:
         r <- httpClient.flatMap(http.client.sendAsync(_, req))
       yield assertTrue(r.bodyAsString == body)
     },
-    test("server answers on undefined request") {
+    test("server answers on undefined request"){
       for
         httpServer <- addr.flatMap(bind(_, httpHandler, ServerConf(workers=10)).fork)
         _ <- Live.live(waitForHttpServer)

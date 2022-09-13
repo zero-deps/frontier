@@ -5,4 +5,4 @@ import zio.*, stream.*
 
 case class BodyChunk(x: Chunk[Byte])
 case class BodyForm(x: Seq[FormData])
-case class BodyStream(x: ZStream[Any, Throwable, Byte])
+case class BodyStream(x: Stream[Throwable, Byte])

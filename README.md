@@ -1,10 +1,8 @@
 # frontier
 
-[![CI](https://img.shields.io/github/workflow/status/zero-deps/frontier/ci)](https://github.com/zero-deps/frontier/actions/workflows/test.yml)
-[![License](https://img.shields.io/badge/license-DHARMA-green)](LICENSE)
-[![LoC](https://img.shields.io/tokei/lines/github/zero-deps/frontier)](#)
+![Deprecated](https://img.shields.io/badge/Project%20Stage-Deprecated-red.svg)
 
-Fast, efficient, pure-functional, effect-free WebSocket, HTTP and UDP server, HTTP client and Telegram bot.
+A lightweight HTTP/WebSocket server with a single dependency on `zio-stream`.
 
 ## demo
 
@@ -17,7 +15,9 @@ curl -X TRACE -d 'こんにちは' http://localhost:9012
 
 ## benchmark
 
-|          | cnt/s | 99th pct |
-| -------- | -----:| --------:|
-| frontier |   300 |      132 |
-| http4s   |   300 |      176 |
+|          | users | req/s | score |
+| -------- | -----:| -----:| -----:|
+| ./ftier  |   600 |   900 |   65% |
+| ./ws     |   400 |   600 |   43% |
+| ziohttp  |   925 |  1387 |  100% |
+| akkahttp |   150 |   225 |   16% |

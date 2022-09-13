@@ -1,11 +1,9 @@
 package ftier
 package ws
 
-import zio.*, stream.*
-import ftier.nio.*, ftier.nio.core.*
+import zio.*
 
 import http.*
-import ext.{*, given}
 
 sealed trait Msg
 case class Text(v: String, last: Boolean) extends Msg
@@ -53,14 +51,14 @@ def parseHeader(state: WsState): WsState =
         then Some(opcode)
         else state.fragmentsOpcode
       val newState = if size < 126 then
-          state.copy(h=Some(WsHeader(fin, opcode, mask, maskN=0, size=size)), data=state.data.drop(2), fragmentsOpcode = fragmentsOpcode)
+        state.copy(h=Some(WsHeader(fin, opcode, mask, maskN=0, size=size)), data=state.data.drop(2), fragmentsOpcode = fragmentsOpcode)
       else
-          val n = if size == 126 then 2 else 8
-          getNum(2, n, state.data).fold(state)(num => state.copy(h=Some(WsHeader(fin, opcode, mask, maskN=0, size=num.toInt)), data=state.data.drop(2 + n), fragmentsOpcode = fragmentsOpcode))
+        val n = if size == 126 then 2 else 8
+        getNum(2, n, state.data).fold(state)(num => state.copy(h=Some(WsHeader(fin, opcode, mask, maskN=0, size=num.toInt)), data=state.data.drop(2 + n), fragmentsOpcode = fragmentsOpcode))
       newState.h match  
-          case Some(h) if mask =>
-              getNum(0, 4, newState.data).fold(state)(num => newState.copy(h=Some(h.copy(maskN=num.toInt)), data=newState.data.drop(4), fragmentsOpcode = fragmentsOpcode))
-          case _ => newState
+        case Some(h) if mask =>
+          getNum(0, 4, newState.data).fold(state)(num => newState.copy(h=Some(h.copy(maskN=num.toInt)), data=newState.data.drop(4), fragmentsOpcode = fragmentsOpcode))
+        case _ => newState
     case _ => state
 
 def processMask(mask: Boolean, maskN: Int, payload: Chunk[Byte]): Chunk[Byte] =
@@ -75,13 +73,13 @@ def processMask(mask: Boolean, maskN: Int, payload: Chunk[Byte]): Chunk[Byte] =
     payload
 
 def read(opcode: Int, payload: Chunk[Byte], fin: Boolean, fragmentsOpcode: Option[Int]): Task[Msg] = (opcode, fragmentsOpcode) match
-  case (0x0, Some(0x1)) => ZIO.succeed(Text(new String(payload.toArray), fin))
+  case (0x0, Some(0x1)) => ZIO.succeed(Text(payload.toArray.asString, fin))
   case (0x0, Some(0x2)) => ZIO.succeed(Binary(payload, fin))
-  case (0x1, _) => ZIO.succeed(Text(new String(payload.toArray), fin))
+  case (0x1, _) => ZIO.succeed(Text(payload.toArray.asString, fin))
   case (0x2, _) => ZIO.succeed(Binary(payload, fin))
   case (0x8, _) =>
     for status <- 
-      if payload.length >= 2 then Buffer.byte(payload.take(2)) flatMap { _.getShort }
+      if payload.length >= 2 then ByteBuffer.wrap(payload.take(2)).flatMap(_.getShortIO)
       else ZIO.succeed(CLOSED_NO_STATUS)
     yield Close(status)
   case (0x9, _) => ZIO.succeed(Ping)
@@ -95,9 +93,9 @@ def write(msg: Msg): Task[ByteBuffer] =
     case Binary(v, _)  => message(0x2, v)
     case Close(status) =>
       for
-        buffer <- Buffer.byte(2)
-        _ <- buffer.putShort(status) *> buffer.flip
-        chunk <- buffer.getChunk()
+        buffer <- ByteBuffer.allocate(2)
+        _ <- buffer.putShortIO(status) *> buffer.flipIO
+        chunk <- buffer.getChunk
         msg <- message(0x8, chunk)
       yield msg
     case Ping          => message(0x9, Chunk.empty)
@@ -111,23 +109,23 @@ def message(opcode: Int, payload: Chunk[Byte]): Task[ByteBuffer] =
   val payloadLenSize = if payloadSize < 126 then 1 else if payloadSize < 65536 then 1 + 2 else 1 + 8
   val header = 1 << 7 | opcode
   for
-      buffer <- Buffer.byte(headerSize + payloadLenSize + payloadSize)
-      _ <- buffer.put(header.toByte)
+      buffer <- ByteBuffer.allocate(headerSize + payloadLenSize + payloadSize)
+      _ <- buffer.putIO(header.toByte)
       _ <-
         if payloadSize < 126 then
-          buffer.put(payloadSize.toByte)
+          buffer.putIO(payloadSize.toByte)
         else if payloadSize < 65536 then
           for
-            _ <- buffer.put(126.toByte)
-            _ <- buffer.putShort(payloadSize.toShort)
+            _ <- buffer.putIO(126.toByte)
+            _ <- buffer.putShortIO(payloadSize.toShort)
           yield ()
         else 
           for
-            _ <- buffer.put(127.toByte)
-            _ <- buffer.putLong(payloadSize.toLong)
+            _ <- buffer.putIO(127.toByte)
+            _ <- buffer.putLongIO(payloadSize.toLong)
           yield ()
       _ <- buffer.putChunk(payload)
-      _ <- buffer.flip
+      _ <- buffer.flipIO
   yield buffer
 
 val guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -147,7 +145,7 @@ def upgrade(key: String): UIO[Response] =
   crypt.reset()
   crypt.update((key + guid).getBytes("utf8").nn)
   val sha1 = crypt.digest()
-  val accept = String(Base64.getEncoder().nn.encode(sha1))
+  val accept = Base64.getEncoder.nn.encode(sha1).nn.asString
   ZIO.succeed(Response(101, Seq(
     "Upgrade" -> "websocket"
   , "Connection" -> "Upgrade"

@@ -1,63 +1,57 @@
 package ftier
 package tcp
 
-import java.nio.channels.{ServerSocketChannel as JServerSocketChannel, SocketChannel as JSocketChannel, CancelledKeyException, ClosedChannelException}
-import java.io.IOException
-import ftier.nio.*, ftier.nio.core.*, ftier.nio.core.channels.*
-import zio.*, managed.*
+import zio.*, ZIO.*
 
-import ext.{*, given}
-
-val size2mb = 2 * 1024 * 1024
+val `2 MB`: Int = mb(2)
 
 type TcpInit = SocketChannel => Task[TcpHandler]
 type TcpHandler = Chunk[Byte] => Task[Unit]
-
-def getSocketChannel(key: SelectionKey): Task[SocketChannel] =
-  key.channel flatMap (ch => ZIO.attempt(ch.asInstanceOf[JSocketChannel])) flatMap SocketChannel.fromJava
-
-def getServerSocketChannel(key: SelectionKey): Task[ServerSocketChannel] =
-  key.channel flatMap (ch => ZIO.attempt(ch.asInstanceOf[JServerSocketChannel])) flatMap ServerSocketChannel.fromJava
 
 def select(selector: Selector, f: SelectionKey => Task[Any]): Task[Unit] =
   for
     _ <- selector.select(10 millisecond)
     keys <- selector.selectedKeys
     _ <-
-      ZIO.foreach(keys){ key =>
-        ZManaged.acquireReleaseWith(ZIO.succeed(key))(selector.removeKey(_).ignore).use{ k =>
-          ZIO.whenZIO(k.isValid) {
-            f(k).catchSome{
-              case x: IOException if x.getMessage == "Broken pipe" =>
-                ZIO.succeed(println("IOException: Broken pipe"))
-            }.catchAllCause{ cause =>
-              ZIO.succeed(println(s"Key error: ${cause.prettyPrint}"))
-            }
-          }
-        }
-      }
+      foreach(keys):key =>
+        scoped:
+          for
+            k <- acquireRelease(succeed(key))(selector.removeKey(_).ignore)
+            _ <- whenZIO(k.isValidIO):
+              f(k)
+                .catchSome:
+                  case e: IOException if e.getMessage == "Broken pipe" =>
+                    succeed(println("IOException: Broken pipe"))
+                .catchAllCause:cause =>
+                  succeed(println(s"Key error: ${cause.prettyPrint}"))
+          yield ()
   yield ()
 
 def read(buffer: ByteBuffer, key: SelectionKey): Task[(Int, Chunk[Byte])] =
   for
-    channel <- getSocketChannel(key)
+    channel <- key.socketChannel
     chunks <- Ref.make[Chunk[Byte]](Chunk.empty)
     lastN <-
-      (for
-        _ <- buffer.clear
-        n <- channel.read(buffer)
-        _ <- buffer.flip
-        a <- buffer.getChunk()
-        c <- chunks.get
-        _ <- chunks.set(c ++ a)
-      yield if c.length > size2mb then 0 else n).catchSome{
-        case _: ClosedChannelException                                                         => ZIO.succeed(-1)
-        case err: IOException if err.getMessage.toOption.exists(_.contains("Connection reset")) => ZIO.succeed(-1)
-      }.repeatWhile(_ > 0)
+      (
+        for
+          _ <- buffer.clearIO
+          n <- channel.read(buffer)
+          _ <- buffer.flipIO
+          a <- buffer.getChunk
+          c <- chunks.get
+          _ <- chunks.set(c ++ a)
+        yield if c.length > `2 MB` then 0 else n
+      )
+      .catchSome:
+        case _: ClosedChannelException =>
+          succeed(-1)
+        case err: IOException if err.getMessage.toOption.exists(_.contains("Connection reset")) =>
+          succeed(-1)
+      .repeatWhile(_ > 0)
     chunks <- chunks.get
   yield (lastN, chunks)
 
-def bind(
+private def bind(
   addr: SocketAddress
 , serverChannel: ServerSocketChannel
 , accessSelector: Selector
@@ -67,48 +61,46 @@ def bind(
   for
     _ <- serverChannel.configureBlocking(false)
     _ <- serverChannel.bind(addr)
-    _ <- serverChannel.register(accessSelector, SelectionKey.Operation.Accept)
+    _ <- serverChannel.register(accessSelector, SelectionKey.Op.Accept)
     worker <- Ref.make[Int](0)
     afork <-
-      select(accessSelector, key =>
-        ZIO.whenZIO(key.isAcceptable: Task[Boolean]){
-          for
-            server  <- getServerSocketChannel(key)
-            channel <- server.accept
-            channel <- ZIO.fromOption(channel).orElseFail(new CancelledKeyException())
-            _       <- channel.configureBlocking(false)
-            jsocket <- channel.socket
-            _       <- ZIO.attempt(jsocket.setTcpNoDelay(true))
-            n       <- worker.get
-            _       <- worker.set((n + 1) % readSelectors.length)
-            readKey <- channel.register(readSelectors(n), SelectionKey.Operation.Read)
-            handler <- init(channel)
-            _       <- readKey.attach(handler)
-          yield ()
-        }
-      ).forever.orDie.fork
+      select(
+        accessSelector
+      , key =>
+          whenZIO(key.isAcceptableIO:Task[Boolean]):
+            for
+              server  <- key.serverSocketChannel
+              channel <- server.acceptOrFail
+              _ <- channel.configureBlocking(false)
+              jsocket <- channel.socket
+              _ <- attempt(jsocket.setTcpNoDelay(true))
+              n <- worker.get
+              _ <- worker.set((n + 1) % readSelectors.length)
+              readKey <- channel.register(readSelectors(n), SelectionKey.Op.Read)
+              handler <- init(channel)
+              _ <- readKey.attachIO(handler)
+            yield ()
+          ).forever.orDie.fork
     _ <-
-      ZIO.collectAll(
-        readSelectors.map(readSelector =>
-          Buffer.byte(4096).flatMap( buffer =>
-            select(readSelector, key =>
-              ZIO.whenZIO(key.isReadable: Task[Boolean]) {
-                read(buffer, key).flatMap{ case (n, chunk) =>
-                  (for
-                    channel <- getSocketChannel(key)
-                    _       <- ZIO.when(n < 0)(channel.close)
-                    handler <- key.attachment
-                    handler <- ZIO.fromOption(handler).orElseFail(new RuntimeException("wrong state"))
-                    handler <- ZIO.attempt(handler.asInstanceOf[TcpHandler])
-                    _       <- handler(chunk)
-                  yield ())
-                    .retry(Schedule.spaced(2.millisecond) && Schedule.recurs(3))
-                }
-              }
+      collectAll:
+        readSelectors.map:readSelector =>
+          ByteBuffer.allocate(4096).flatMap:buffer =>
+            select(
+              readSelector
+            , key => whenZIO(key.isReadableIO:Task[Boolean]):
+                read(buffer, key).flatMap:(n, chunk) =>
+                  (
+                    for
+                      channel <- key.socketChannel
+                      _ <- when(n < 0)(channel.close)
+                      handler <- key.attachmentIO
+                      handler <- fromOption(handler).orElseFail(RuntimeException("wrong state"))
+                      handler <- attempt(handler.asInstanceOf[TcpHandler])
+                      _ <- handler(chunk)
+                    yield ()
+                  )
+                  .retry(Schedule.spaced(2 millisecond) && Schedule.recurs(3))
             ).forever.orDie.fork
-          )
-        )
-      )
     _ <- afork.await
   yield ()
 
@@ -117,15 +109,13 @@ def bind(
 , workers: Int
 , init: TcpInit
 ): Task[Unit] =
-  ServerSocketChannel.open.toManagedWith(_.close.orDie).use{ serverChannel =>
-    Selector.make.toManagedWith(_.close.orDie).use{ accessSelector =>
-      ZManaged.collectAll(
-        Vector.fill(workers)(Selector.make.toManagedWith(_.close.orDie))
-      ).use{ readSelectors =>
-        bind(addr, serverChannel, accessSelector, readSelectors.to(Vector), init)
-      }
-    }
-  }
+  scoped:
+    for
+      serverChannel <- acquireRelease(ServerSocketChannel.open)(_.close.orDie)
+      accessSelector <- acquireRelease(Selector.make)(_.close.orDie)
+      readSelectors <- collectAll(Vector.fill(workers)(acquireRelease(Selector.make)(_.close.orDie)))
+      _ <- bind(addr, serverChannel, accessSelector, readSelectors, init)
+    yield ()
 
 // case class ConnectionPool(connectSelector: Selector, readSelector: Selector)
 // case class Connection(channel: SocketChannel, cp: ConnectionPool)
@@ -161,10 +151,10 @@ def bind(
 //                     IO.whenM(key.isReadable: Task[Boolean]) {
 //                         read(buffer, key).flatMap{ case (n, chunk) => for {
 //                             channel <- getSocketChannel(key)
-//                             _       <- ZIO.when(n < 0)(channel.close)
+//                             _       <- when(n < 0)(channel.close)
 //                             handler <- key.attachment
-//                             handler <- ZIO.fromOption(handler).orElseFail(new RuntimeException("wrong state"))
-//                             handler <- ZIO.effect(handler.asInstanceOf[TcpHandler])
+//                             handler <- fromOption(handler).orElseFail(new RuntimeException("wrong state"))
+//                             handler <- effect(handler.asInstanceOf[TcpHandler])
 //                             _       <- handler(n < 0, chunk)
 //                         } yield ()}
 //                     }

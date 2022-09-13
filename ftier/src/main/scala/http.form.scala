@@ -1,35 +1,29 @@
 package ftier
 package http
 
-import java.io.IOException
-import java.nio.file.StandardOpenOption
-import java.nio.file.{Files as JFiles, Paths as JPaths}
 import scala.util.chaining.*
-import scala.annotation.tailrec
-import zio.*, stream.*
-import ftier.nio.file.Files
-import ftier.nio.core.file.Path
-
-import ext.given
-import zio.ZIO.attemptBlocking
+import zio.*
 
 enum FormData:
   case File(name: String, path: Path)
   case Param(name: String, value: Chunk[Byte])
 
-private val `\r\n\r\n`  = "\r\n\r\n".getBytes.nn
-private val `\r\n`      = "\r\n".getBytes.nn
+private val `\r\n\r\n` = "\r\n\r\n".getBytes.nn
+private val `\r\n` = "\r\n".getBytes.nn
 
 def awaitForm(state: HttpState.AwaitForm, chunk: Array[Byte]): IO[BadReq.type | Exception, HttpState] =
   val `--bound`   = s"--${state.bound}".getBytes.nn
   val `--bound--` = s"--${state.bound}--".getBytes.nn
   readForm(state, chunk, `--bound`, `--bound--`)
 
-def readForm(state: HttpState.AwaitForm, chunk: Array[Byte], `--bound`: Array[Byte], `--bound--`: Array[Byte]): IO[BadReq.type | Exception, HttpState] =
-  
+def readForm(
+  state: HttpState.AwaitForm,
+  chunk: Array[Byte],
+  `--bound`: Array[Byte],
+  `--bound--`: Array[Byte],
+): IO[BadReq.type | Exception, HttpState] =
   val `\r\n--bound`   = `\r\n` ++ `--bound`
   val data = state.body ++ chunk
-
   if data.size == 0 then ZIO.succeed(state)
   else
     state.curr match
@@ -41,23 +35,22 @@ def readForm(state: HttpState.AwaitForm, chunk: Array[Byte], `--bound`: Array[By
         else if data startsWith `--bound` then
           data.indexOfSlice(`\r\n\r\n`) match
             case -1 => ZIO.succeed(state.copy(body = data))
-            case  i =>
+            case i =>
               val (headersChunk, other) = data.splitAt(i)
               for
-                headers <- ZIO.succeed(String(headersChunk, "utf8").split("\r\n").nn.drop(1).map(_.nn))
-                s       <- 
+                headers <- ZIO.succeed(headersChunk.asString.split("\r\n").nn.drop(1).map(_.nn))
+                s <- 
                   headers.find(_.startsWith("Content-Disposition: form-data;")) match
                     case None =>
                       ZIO.fail(BadReq)
                     case Some(disp) =>
                       val isFile = """Content-Disposition: form-data; name="[^"]+"; filename="[^"]+"""".r.findFirstIn(disp).isDefined
                       """Content-Disposition: form-data; name="([^"]+)"""".r.findFirstMatchIn(disp).map(_.group(1)) match
-                        case None       => ZIO.fail(BadReq)
+                        case None => ZIO.fail(BadReq)
                         case Some(name) =>
-                          createField(name, isFile).flatMap[Any, BadReq.type | Exception, HttpState]{ field =>
+                          createField(name, isFile).flatMap[Any, BadReq.type | Exception, HttpState]:field =>
                             val formDataChunk = other.drop(`\r\n\r\n`.size)
                             awaitForm(state.copy(body = Array.empty, curr = Some(field)), formDataChunk)
-                          }
               yield s
         else ZIO.fail(BadReq)
       case Some(param: FormData.Param) =>
@@ -77,11 +70,11 @@ def readForm(state: HttpState.AwaitForm, chunk: Array[Byte], `--bound`: Array[By
           case -1 =>
             val (dataToWrite, tail) = data.splitAt(data.size - `\r\n`.length - `--bound--`.length)
             for _ <- appendFile(file, dataToWrite) yield state.copy(body = tail)
-          case  i =>
+          case i =>
             val (fileData, other) = data.splitAt(i)
             for
-              _  <- appendFile(file, fileData)
-              s  = state.copy(body = Array.empty, form = state.form :+ file, curr = None)
+              _ <- appendFile(file, fileData)
+              s = state.copy(body = Array.empty, form = state.form :+ file, curr = None)
               s1 <- 
                 if other startsWith (`\r\n` ++ `--bound--`) then ZIO.succeed(HttpState.MsgDone(s.meta, BodyForm(s.form)))
                 else awaitForm(s, other.drop(`\r\n`.size))
@@ -92,11 +85,16 @@ private def createField(name: String, isFile: Boolean): IO[Exception, FormData] 
     for
       uuid <- ZIO.succeed(java.util.UUID.randomUUID.toString)
       path <- Files.createTempFile(uuid)
-      _    <- ZIO.succeed(path.toFile.deleteOnExit)
+      _ <- ZIO.succeed(path.toFile.nn.deleteOnExit)
     yield FormData.File(name, path)
   else
     ZIO.succeed(FormData.Param(name, Chunk.empty))
 
-private def appendFile(file: FormData.File, value: Array[Byte]): IO[Exception, Unit] =
-  attemptBlocking(JFiles.write(JPaths.get(file.path.toString), value, StandardOpenOption.APPEND)).unit.refineToOrDie[Exception]
-
+private def appendFile(
+  file: FormData.File,
+  value: Array[Byte],
+): IO[IOException, Unit] =
+  for
+    path <- Paths.get(file.path.toString)
+    _ <- Files.append(path, value)
+  yield ()

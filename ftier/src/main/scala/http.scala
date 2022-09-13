@@ -1,12 +1,8 @@
 package ftier
 package http
 
-import java.io.IOException
 import scala.util.chaining.*
-import scala.annotation.tailrec
-import zio.*, stream.*
-
-import ext.given
+import zio.*
 
 case class Host(name: String, port: Option[String]=None)
 
@@ -35,7 +31,7 @@ case class Request
   
   lazy val bodyAsString: String =
     body match
-      case BodyChunk(c) => String(c.toArray, "utf8")
+      case BodyChunk(c) => c.toArray.asString
       case _ => ""
   
   lazy val bodyAsBytes: Array[Byte] =
@@ -75,7 +71,7 @@ end Request
 
 object Request:
   def apply(method: String, url: String, headers: Map[String, String], body: String): Request =
-    new Request(method=method, url=url, headers=headers, body=BodyChunk(Chunk.fromArray(body.getBytes("utf8").nn)))
+    Request(method=method, url=url, headers=headers, body=BodyChunk(Chunk.fromArray(body.getBytes("utf8").nn)))
 
 object Get:
   def unapply(r: Request): Option[String] =
@@ -97,11 +93,11 @@ case class Response
 
   lazy val bodyAsString: String =
     body match
-      case BodyChunk(c) => String(c.toArray, "utf8")
+      case BodyChunk(c) => c.toArray.asString
       case _ => ""
 
 object Response:
-  def empty(code: Int): Response = new Response(code, Nil, BodyChunk(Chunk.empty))
+  def empty(code: Int): Response = Response(code, Nil, BodyChunk(Chunk.empty))
 
 object HttpState:
   def apply(): HttpState = AwaitHeader(0, false, Chunk.empty) 
@@ -152,7 +148,7 @@ def processChunk(chunk: Chunk[Byte], s: HttpState): IO[BadReq.type | Exception, 
 def parseHeader(pos: Int, chunk: Chunk[Byte]): IO[BadReq.type | Exception, HttpState] =
   val (header, body) = chunk.splitAt(pos + 1)
   for
-    lines <- ZIO.succeed(String(header.toArray).split("\r\n").nn.toVector)
+    lines <- ZIO.succeed(header.toArray.asString.split("\r\n").nn.toVector)
     headers <- ZIO.succeed(lines.drop(1).map(_.nn.split(": ").nn).collect{ case Array(h, k) => (h.nn, k.nn) }.toMap)
     headersLowerCase = headers.map{ case (k, v) => k.toLowerCase.nn -> v }  
     line1 <- ZIO.succeed(lines.headOption.getOrElse("").nn)

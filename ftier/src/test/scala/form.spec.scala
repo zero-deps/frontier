@@ -1,13 +1,13 @@
 package ftier
 package http
 
-import ftier.nio.file.Files
-import scala.collection.immutable.ArraySeq
+import java.io.IOException
+import java.nio.file.Path
 import zio.*, test.*, Assertion.*
 
 object FormSpec extends ZIOSpecDefault:
   def spec = suite("FormSpec")(
-    test("two params") {
+    test("two params"){
       val form = (
        """|------WebKitFormBoundaryAtKqfnKiF0dX7jp6
           |Content-Disposition: form-data; name="component"
@@ -29,12 +29,12 @@ object FormSpec extends ZIOSpecDefault:
           }
         components =
           form.collect{
-            case FormData.Param("component", c) => String(c.toArray, "utf8")
+            case FormData.Param("component", c) => c.toArray.asString
           }.toSet
       yield
           assert(components)(equalTo(Set("Component_1", "Component_2")))
     },
-    test("file one line") {
+    test("file one line"){
       val form = (
        """------WebKitFormBoundaryAtKqfnKiF0dX7jp6
           |Content-Disposition: form-data; name="component"
@@ -53,13 +53,13 @@ object FormSpec extends ZIOSpecDefault:
           awaitForm(state, Array.empty).collect("bad state"){
             case HttpState.MsgDone(_, body: BodyForm) => body.x
           }
-        f <- form.collectFirst{ case FormData.File("file", p) => Files.readAllBytes(p).map(x => String(x.toArray)) }.getOrElse(ZIO.fail("no file"))
-        c = form.collectFirst{ case FormData.Param("component", p) => String(p.toArray) }
+        f <- form.collectFirst{ case FormData.File("file", p) => readAllBytes(p).map(_.toArray.asString) }.getOrElse(ZIO.fail("no file"))
+        c = form.collectFirst{ case FormData.Param("component", p) => p.toArray.asString }
       yield
         assert(f)(equalTo("abc")) &&
         assert(c)(equalTo(Some("Documents_Edit")))
     },
-    test("file two lines") {
+    test("file two lines"){
       val form = (
        """|------WebKitFormBoundaryAtKqfnKiF0dX7jp6
           |Content-Disposition: form-data; name="file"; filename="some_file_name.json"
@@ -79,14 +79,14 @@ object FormSpec extends ZIOSpecDefault:
           awaitForm(state, Array.empty).collect("bad state"){
             case HttpState.MsgDone(_, body: BodyForm) => body.x
           }
-        f <- form.collectFirst{ case FormData.File("file", p) => Files.readAllBytes(p).map(x => String(x.toArray)) }.getOrElse(ZIO.fail("no file"))
-        c = form.collectFirst{ case FormData.Param("component", p) => String(p.toArray) }
+        f <- form.collectFirst{ case FormData.File("file", p) => readAllBytes(p).map(_.toArray.asString) }.getOrElse(ZIO.fail("no file"))
+        c = form.collectFirst{ case FormData.Param("component", p) => p.toArray.asString }
       yield
         assert(f)(equalTo("abc\r\ndef")) &&
         assert(c)(equalTo(Some("1tnenopmoC")))
     },
 
-    test("two chunks") {
+    test("two chunks"){
       val form1 = (
        """|------WebKitFormBoundaryAtKqfnKiF0dX7jp6
           |Content-Disposition: form-data; name="component"
@@ -110,13 +110,13 @@ object FormSpec extends ZIOSpecDefault:
         form <- awaitForm(s, form2).collect("bad state"){ case HttpState.MsgDone(_, body: BodyForm) => body.x }
         components =
           form.collect{
-            case FormData.Param("component", c) => String(c.toArray, "utf8")
+            case FormData.Param("component", c) => c.toArray.asString
           }.toSet
       yield
           assert(components)(equalTo(Set("Component_number_1", "Component_number_2")))
     },
 
-    test("more chunks") {
+    test("more chunks"){
       val form1 = (
        """|------WebKitFormBoundarymLsm7T4fqzAYLseD
           |Content-Disposition: form-data; name="file"; filename="some_file_name.txt"
@@ -178,15 +178,15 @@ object FormSpec extends ZIOSpecDefault:
         form <- awaitForm(s4, form5).collect("bad state"){ case HttpState.MsgDone(_, body: BodyForm) => body.x }
         components =
           form.collect{
-            case FormData.Param("component", c) => String(c.toArray, "utf8")
+            case FormData.Param("component", c) => c.toArray.asString
           }.toSet
-        f <- form.collectFirst{ case FormData.File("file", p) => Files.readAllBytes(p).map(x => String(x.toArray)) }.getOrElse(ZIO.fail("no file"))
+        f <- form.collectFirst{ case FormData.File("file", p) => readAllBytes(p).map(_.toArray.asString) }.getOrElse(ZIO.fail("no file"))
       yield
         assert(f)(equalTo("abcd\r\ndcba\r\nblablabla")) &&
         assert(components)(equalTo(Set("SomeData11", "SomeData22", "SomeData22", "SomeData33", "SomeData44", "SomeData55", "SomeData66", "SomeData77")))
     },
 
-    test("boundary devided") {
+    test("boundary devided"){
       val form = (
        """|------WebKitFormBoundaryAtKqfnKiF0dX7jp6
           |Content-Disposition: form-data; name="component"
@@ -205,7 +205,7 @@ object FormSpec extends ZIOSpecDefault:
           |------WebKitFormBoundaryAtKqfnKiF0dX7jp6--"""
       ).stripMargin.getBytes("utf8").nn
 
-      check(Gen.int(0, form.size)) { i =>
+      check(Gen.int(0, form.size)){ i =>
         val (form1, form2) = form.splitAt(i)
         val state: HttpState.AwaitForm = HttpState.AwaitForm(meta=MetaData("POST", "", Map.empty), body=Array.empty, form=Nil, bound="----WebKitFormBoundaryAtKqfnKiF0dX7jp6", curr=None)
         for
@@ -213,9 +213,9 @@ object FormSpec extends ZIOSpecDefault:
           parsedForm <- awaitForm(s1, form2).collect("bad state"){ case HttpState.MsgDone(_, body: BodyForm) => body.x }
           components =
             parsedForm.collect{
-              case FormData.Param("component", c) => String(c.toArray, "utf8")
+              case FormData.Param("component", c) => c.toArray.asString
             }.toSet
-          f <- parsedForm.collectFirst{ case FormData.File("file", p) => Files.readAllBytes(p).map(x => String(x.toArray)) }.getOrElse(ZIO.fail("no file"))
+          f <- parsedForm.collectFirst{ case FormData.File("file", p) => readAllBytes(p).map(_.toArray.asString) }.getOrElse(ZIO.fail("no file"))
         yield
           assert(f)(equalTo("abc\r\ndef")) &&
           assert(components)(equalTo(Set("Data_data_1", "2_data_Data")))
@@ -223,3 +223,6 @@ object FormSpec extends ZIOSpecDefault:
 
     },
   )
+
+def readAllBytes(path: Path): IO[IOException, Chunk[Byte]] =
+  ZIO.attempt(java.nio.file.Files.readAllBytes(path).nn).map(Chunk.fromArray).refineToOrDie[IOException]

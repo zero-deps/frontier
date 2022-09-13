@@ -1,13 +1,13 @@
 package ftier.demo
 
 import ftier.*, ws.*, http.*, server.*
-import ftier.nio.*, ftier.nio.core.*
+import java.net.InetSocketAddress
 import zio.*
 
 object Demo extends ZIOAppDefault:
   def run =
     for
-      addr <- SocketAddress.inetSocketAddress(9012).orDie
+      addr <- ZIO.attempt(InetSocketAddress(9012)).orDie
       httpServer <- bind(addr, httpHandler, ServerConf(workers=10)).fork
       body <- ZIO.succeed("こんにちは")
       _ <- Console.printLine(s"TRACE http://localhost:9012 '$body'")
@@ -21,15 +21,19 @@ object Demo extends ZIOAppDefault:
       _ <- httpServer.join
     yield ()
 
+val `\n` = Chunk.fromArray("\n".getBytes.nn)
+def shuffle(xs: Array[Byte]): Array[Byte] =
+  String(util.Random.shuffle(xs.asString.toArray.toList).toArray).getBytes.nn
+
 val httpHandler: HttpHandler[Any] =
   case UpgradeRequest(r) if r.req.path == "/wsecho" =>
     ZIO.succeed(WsResp(r, wsHandler))
   case req@ Get(Root / "echo") =>
-    ZIO.succeed(Response(200, Nil, BodyChunk(Chunk.fromArray(req.bodyAsBytes) ++ Chunk.fromArray("\n".getBytes.nn))))
+    ZIO.succeed(Response(200, Nil, BodyChunk(Chunk.fromArray(shuffle(req.bodyAsBytes)) ++ `\n`)))
   case req@ Post(Root / "echo") =>
-    ZIO.succeed(Response(200, Nil, BodyChunk(Chunk.fromArray(req.bodyAsBytes) ++ Chunk.fromArray("\n".getBytes.nn))))
+    ZIO.succeed(Response(200, Nil, BodyChunk(Chunk.fromArray(shuffle(req.bodyAsBytes)) ++ `\n`)))
   case req@ Request("TRACE", _, _, _) =>
-    ZIO.succeed(Response(200, Nil, BodyChunk(Chunk.fromArray(req.bodyAsBytes) ++ Chunk.fromArray("\n".getBytes.nn))))
+    ZIO.succeed(Response(200, Nil, BodyChunk(Chunk.fromArray(shuffle(req.bodyAsBytes)) ++ `\n`)))
   case _ =>
     ZIO.succeed(Response.empty(404))
 
