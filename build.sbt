@@ -9,9 +9,9 @@ lazy val ftier = project
   .settings(
     scalaVersion := scala
   , libraryDependencies ++= Seq(
-      "dev.zio" %% "zio-streams" % "2.0.0"
-    , "dev.zio" %% "zio-managed" % "2.0.0"
-    , "dev.zio" %% "zio-test-sbt" % "2.0.0" % Test
+      "dev.zio" %% "zio-streams" % "2.0.2"
+    , "dev.zio" %% "zio-managed" % "2.0.2"
+    , "dev.zio" %% "zio-test-sbt" % "2.0.2" % Test
     )
   , testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
   , scalacOptions ++= Seq(
@@ -27,7 +27,7 @@ lazy val bot = project
   .settings(
     scalaVersion := scala
   , libraryDependencies ++= Seq(
-      "dev.zio" %% "zio-json" % "0.3.0-RC10"
+      "dev.zio" %% "zio-json" % "0.3.0-RC11"
     )
   , scalacOptions ++= Seq(
       "-language:strictEquality"
@@ -55,8 +55,8 @@ lazy val benchmark = project
     libraryDependencies ++= Seq(
       "org.http4s" %% "http4s-blaze-server" % "0.23.11"
     , "org.http4s" %% "http4s-dsl" % "0.23.11"
-    , "io.gatling.highcharts" % "gatling-charts-highcharts" % "3.7.6" % "it"
-    , "io.gatling"            % "gatling-test-framework"    % "3.7.6" % "it"
+    , "io.gatling.highcharts" % "gatling-charts-highcharts" % "3.8.3" % "it"
+    , "io.gatling"            % "gatling-test-framework"    % "3.8.3" % "it"
     )
   , scalaVersion := scala
   , run / fork := true

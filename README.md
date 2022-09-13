@@ -19,5 +19,12 @@ curl -X TRACE -d 'こんにちは' http://localhost:9012
 
 |          | cnt/s | 99th pct |
 | -------- | -----:| --------:|
-| frontier |   300 |      132 |
-| http4s   |   300 |      176 |
+| frontier |   750 |      206 |
+| http4s   |   750 |      236 |
+
+```sh
+ulimit -n 65536
+sbt 'project benchmark' run
+ulimit -n 65536
+sbt 'project benchmark' GatlingIt/test
+```

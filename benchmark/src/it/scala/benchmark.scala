@@ -22,4 +22,4 @@ class BenchmarkSimulation extends Simulation:
     }
     .exec(ws("Close WS").close)
 
-  setUp(scn.inject(atOnceUsers(200)).protocols(httpProtocol))
+  setUp(scn.inject(atOnceUsers(500)).protocols(httpProtocol))
