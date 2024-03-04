@@ -1,9 +1,5 @@
 # frontier
 
-[![CI](https://img.shields.io/github/workflow/status/zero-deps/frontier/ci)](https://github.com/zero-deps/frontier/actions/workflows/test.yml)
-[![License](https://img.shields.io/badge/license-DHARMA-green)](LICENSE)
-[![LoC](https://img.shields.io/tokei/lines/github/zero-deps/frontier)](#)
-
 Fast, efficient, pure-functional, effect-free WebSocket, HTTP and UDP server, HTTP client and Telegram bot.
 
 ## demo
