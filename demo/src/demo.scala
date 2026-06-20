@@ -9,7 +9,7 @@ object Demo extends ZIOAppDefault:
     for
       addr <- ZIO.attempt(InetSocketAddress(9012)).orDie
       httpServer <- bind(addr, httpHandler, ServerConf(workers=10)).fork
-      body <- ZIO.succeed("こんにちは")
+      body <- ZIO.succeed("hello")
       _ <- Console.printLine(s"TRACE http://localhost:9012 '$body'")
       httpClient <- http.client.httpClient
       r <-

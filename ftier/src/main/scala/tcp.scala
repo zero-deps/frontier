@@ -10,7 +10,7 @@ type TcpHandler = Chunk[Byte] => Task[Unit]
 
 def select(selector: Selector, f: SelectionKey => Task[Any]): Task[Unit] =
   for
-    _ <- selector.select(10 millisecond)
+    _ <- selector.select(10.millis)
     keys <- selector.selectedKeys
     _ <-
       foreach(keys):key =>
@@ -99,7 +99,7 @@ private def bind(
                       _ <- handler(chunk)
                     yield ()
                   )
-                  .retry(Schedule.spaced(2 millisecond) && Schedule.recurs(3))
+                  .retry(Schedule.spaced(2.millis) && Schedule.recurs(3))
             ).forever.orDie.fork
     _ <- afork.await
   yield ()
